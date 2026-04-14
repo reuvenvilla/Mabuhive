@@ -47,4 +47,7 @@ class StaticHandler(View):
         if encoding:
             response["Content-Encoding"] = encoding
 
+        # ── Prevent caching in development ───────────────────────────────────
+        response["Cache-Control"] = "no-cache"
+
         return response

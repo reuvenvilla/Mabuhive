@@ -6,13 +6,16 @@
 
 function NavBar({ activePage = "" }) {
   const links = [
-    { href: "/",     label: "Home",  key: "home" },
-    { href: "/blog", label: "Blog",  key: "blog" },
+    { href: "/",       label: "Home",    key: "home" },
+    { href: "/hives",  label: "Hives",   key: "hives" },
+    { href: "/quests", label: "Quests",  key: "quests" },
+    { href: "/journal", label: "Journal", key: "journal" },
+    { href: "/profile", label: "Profile", key: "profile" },
   ];
 
   return (
     <header className="site-header">
-      <a className="site-logo" href="/">MyApp</a>
+      <a className="site-logo" href="/">MabuHive</a>
       <nav className="site-nav">
         {links.map(({ href, label, key }) => (
           <a

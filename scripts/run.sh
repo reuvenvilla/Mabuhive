@@ -14,13 +14,13 @@ PORT="${1:-8000}"
 # ── Resolve python binary (macOS uses python3) ────────────────────────────────
 PYTHON=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)
 if [[ -z "$PYTHON" ]]; then
-  echo "❌  python3 not found. Install Python 3 and try again."
+  echo "ERR:python3 not found. Install Python 3 and try again."
   exit 1
 fi
 
 # ── Check Django is installed ─────────────────────────────────────────────────
 if ! "$PYTHON" -c "import django" &>/dev/null; then
-  echo "⚠️  Django not found. Installing requirements..."
+  echo "WARNING: Django not found. Installing requirements..."
   "$PYTHON" -m pip install -r requirements.txt
 fi
 
@@ -36,7 +36,7 @@ done < configs/local/.env
 
 mkdir -p build/posts
 
-echo "🚀  Dev server -> http://localhost:${PORT}"
+echo "   Dev server -> http://localhost:${PORT}"
 echo "    Stop with Ctrl-C"
 echo ""
 

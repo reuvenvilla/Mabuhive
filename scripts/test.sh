@@ -12,13 +12,13 @@ cd "$(dirname "$0")/.."
 PYTHON=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)
 
 if [[ "${1:-}" == "--docker" ]]; then
-  echo "🧪  Building test image..."
+  echo "   Building test image..."
   docker build --target test --tag myapp:test --file docker/Dockerfile .
   echo ""
-  echo "🧪  Running tests in container..."
+  echo "   Running tests in container..."
   docker run --rm --env-file configs/test/.env myapp:test
 else
-  echo "🧪  Running tests locally..."
+  echo "   Running tests locally..."
   # Safe env loading (avoids source breaking on space-separated values)
   while IFS='=' read -r key value; do
     [[ -z "$key" || "$key" == \#* ]] && continue

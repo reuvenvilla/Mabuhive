@@ -38,14 +38,12 @@ COPY . .
 RUN mkdir -p /app/build/posts
 
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Stage 2 — test
-# Runs the test suite. Used in CI before building the deploy image.
-# Exit code reflects pass/fail so Cloud Build can gate on it.
+# Testing Sage (No tests for now, so ignore)
+# Runs the test suite. 
+# Tests ran before CI builds project
 #
 # Usage:  docker build --target test -t myapp:test -f docker/Dockerfile .
 #         docker run --rm myapp:test
-# ══════════════════════════════════════════════════════════════════════════════
 FROM base AS test
 
 ENV DEBUG=True
@@ -55,7 +53,7 @@ CMD ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Stage 3a — local
+# Build Stage (Local)
 # Django development server with DEBUG=True.
 # Source should be bind-mounted for hot-reload:
 #   docker run -v $(pwd):/app -p 8000:8000 myapp:local
@@ -77,7 +75,7 @@ CMD ["python", "-m", "server.server", "runserver", "0.0.0.0:8000"]
 
 
 # ══════════════════════════════════════════════════════════════════════════════
-# Stage 3b — deploy
+# Deploy Stage
 # Production image: Gunicorn, DEBUG=False, minimal footprint.
 #
 # Usage:  docker build --target deploy -t myapp:deploy -f docker/Dockerfile .

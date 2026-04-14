@@ -14,7 +14,7 @@
   <!-- Babel standalone: transforms JSX in the browser -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body>
+<body data-page="home">
 
   <div id="root"></div>
 
@@ -24,23 +24,11 @@
   <!-- Reusable React components -->
   <script type="text/babel" src="/api/static/js/components/NavBar.jsx"></script>
 
-  <!-- Page bootstrap -->
-  <script type="text/babel">
-    function HomePage() {
-      return (
-        <div className="page">
-          <NavBar activePage="home" />
-          <main className="container">
-            <h1>Welcome</h1>
-            <p>This is the home page. Navigate to <a href="/blog">/blog</a> to see the blog.</p>
-          </main>
-        </div>
-      );
-    }
+  <!-- Page-specific content -->
+  <script type="text/babel" src="/api/static/js/components/HomeSubpage.jsx"></script>
 
-    const root = ReactDOM.createRoot(document.getElementById("root"));
-    root.render(<HomePage />);
-  </script>
+  <!-- Shared page bootstrap -->
+  <script type="text/babel" src="/api/static/js/default_page.js"></script>
 
 </body>
 </html>

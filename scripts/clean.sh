@@ -14,7 +14,7 @@ rm -rf build/
 echo "    Done."
 
 if [[ "${1:-}" == "--docker" ]]; then
-  echo "🧹  Removing myapp Docker images..."
+  echo "   Removing myapp Docker images..."
   docker rmi myapp:local myapp:test myapp:deploy 2>/dev/null && echo "    Done." \
     || echo "    (No myapp images found — skipping.)"
 fi

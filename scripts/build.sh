@@ -16,7 +16,7 @@ TARGET="${1:-local}"
 case "$TARGET" in
   local|test|deploy) ;;
   *)
-    echo "❌  Unknown target: $TARGET"
+    echo "    Unknown target: $TARGET"
     echo "    Usage: $0 [local|test|deploy]"
     exit 1
     ;;
@@ -32,7 +32,7 @@ docker build \
   .
 
 echo ""
-echo "✅  Built: ${IMAGE}"
+echo "    Built: ${IMAGE}"
 echo ""
 echo "Run it:"
 case "$TARGET" in

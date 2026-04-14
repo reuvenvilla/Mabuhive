@@ -3,31 +3,29 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Blog</title>
+  <title>Profile</title>
 
-  <!-- Styles -->
+  <!-- Global styles -->
   <link rel="stylesheet" href="/api/static/css/global.css" />
-  <link rel="stylesheet" href="/api/static/css/blog.css" />
 
   <!-- React (inline CDN — no build step required) -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- Babel standalone: transforms JSX in the browser -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
 </head>
-<body data-page="blog">
+<body data-page="profile">
 
   <div id="root"></div>
 
-  <!-- Shared utilities -->
+  <!-- Shared utilities (plain JS — no JSX) -->
   <script src="/api/static/js/utils.js"></script>
 
-  <!-- Reusable components -->
+  <!-- Reusable React components -->
   <script type="text/babel" src="/api/static/js/components/NavBar.jsx"></script>
-  <script type="text/babel" src="/api/static/js/components/PostCard.jsx"></script>
-  <script type="text/babel" src="/api/static/js/components/PostForm.jsx"></script>
 
   <!-- Page-specific content -->
-  <script type="text/babel" src="/api/static/js/components/BlogSubpage.jsx"></script>
+  <script type="text/babel" src="/api/static/js/components/ProfileSubpage.jsx"></script>
 
   <!-- Shared page bootstrap -->
   <script type="text/babel" src="/api/static/js/default_page.js"></script>

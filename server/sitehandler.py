@@ -39,4 +39,8 @@ class SiteHandler(View):
         with open(full_path, "r", encoding="utf-8") as f:
             html = f.read()
 
-        return HttpResponse(html, content_type="text/html; charset=utf-8")
+        response = HttpResponse(html, content_type="text/html; charset=utf-8")
+        # ── Prevent caching in development ───────────────────────────────────
+        response["Cache-Control"] = "no-cache"
+
+        return response

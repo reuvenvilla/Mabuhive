@@ -11,10 +11,13 @@ BASE_DIR = Path(__file__).resolve().parent
 # ── Security ──────────────────────────────────────────────────────────────────
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev-only-secret-key-change-in-production")
 DEBUG      = os.environ.get("DEBUG", "True") == "True"
-ALLOWED_HOSTS = os.environ.get("ALLOWED_HOSTS", "localhost 127.0.0.1 0.0.0.0").split()
-
+# settings.py
+raw_hosts = os.environ.get("ALLOWED_HOSTS", "").strip()
+if not raw_hosts:
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
+else:
+    ALLOWED_HOSTS = [h.strip() for h in raw_hosts.split(",")]
 # ── Apps & Middleware ─────────────────────────────────────────────────────────
-# Note: "server" is intentionally NOT listed here.
 # Our handlers need no Django app registration (no models, signals, or
 # management commands). Keeping it out also avoids any import path ambiguity.
 INSTALLED_APPS = [
@@ -29,9 +32,11 @@ MIDDLEWARE = [
 
 # ── Routing ───────────────────────────────────────────────────────────────────
 # All URI → handler wiring lives in server/dispatcher.py
+# This part is responsible for redirecting to different hadlers
+# depending on the path described (website.com/api/* -> API Handler, etc)
 ROOT_URLCONF = "server.dispatcher"
 
-# ── WSGI ─────────────────────────────────────────────────────────────────────
+# ── WSGI, Python specific, required for Django to run
 WSGI_APPLICATION = "server.server.application"
 
 # ── Templates ────────────────────────────────────────────────────────────────
