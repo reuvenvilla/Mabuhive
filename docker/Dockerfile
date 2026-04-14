@@ -1,98 +1,76 @@
 # docker/Dockerfile
-#
-# Three build targets — select with --target flag:
-#
-#   docker build --target local  -t myapp:local  -f docker/Dockerfile .
-#   docker build --target test   -t myapp:test   -f docker/Dockerfile .
-#   docker build --target deploy -t myapp:deploy -f docker/Dockerfile .
-#
-# Or via scripts/:
-#   ./scripts/build.sh local
-#   ./scripts/build.sh test
-#   ./scripts/build.sh deploy
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Stage 1 — base
-# Shared foundation: installs dependencies, copies source.
-# No CMD — not meant to be run directly.
-# ══════════════════════════════════════════════════════════════════════════════
+### Base environment container ###
 FROM python:3.12-slim AS base
 
+# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    # Project root is the WORKDIR, so `import settings` resolves correctly
-    PYTHONPATH=/app \
     DJANGO_SETTINGS_MODULE=settings
 
-WORKDIR /app
+# Install system dependencies if needed (e.g., for Django)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies (cached layer — only rebuilds if requirements.txt changes)
+# Install Python dependencies
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copy full project source
-COPY . .
+# Copy project source
+COPY . /usr/src/project
+WORKDIR /usr/src/project
 
-# Create the build output directory (git-ignored on host)
-RUN mkdir -p /app/build/posts
+### Build/test container ###
+# Define builder stage
+FROM base AS builder
 
+# Share work directory
+WORKDIR /usr/src/project
 
-# Testing Sage (No tests for now, so ignore)
-# Runs the test suite. 
-# Tests ran before CI builds project
-#
-# Usage:  docker build --target test -t myapp:test -f docker/Dockerfile .
-#         docker run --rm myapp:test
-FROM base AS test
+# Run tests
+RUN python -m pytest tests/ -v --tb=short
 
-ENV DEBUG=True
+### Deploy container ###
+# Define deploy stage
+FROM python:3.12-slim AS deploy
 
-# pytest + pytest-django already in requirements.txt
-CMD ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    DJANGO_SETTINGS_MODULE=settings
 
+# Install runtime dependencies
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
-# ══════════════════════════════════════════════════════════════════════════════
-# Build Stage (Local)
-# Django development server with DEBUG=True.
-# Source should be bind-mounted for hot-reload:
-#   docker run -v $(pwd):/app -p 8000:8000 myapp:local
-#
-# Usage:  docker build --target local -t myapp:local -f docker/Dockerfile .
-#         docker run -v $(pwd):/app -p 8000:8000 --env-file configs/local/.env myapp:local
-# ══════════════════════════════════════════════════════════════════════════════
-FROM base AS local
+# Copy project source from builder
+COPY --from=builder /usr/src/project /app
+WORKDIR /app
 
-# curl needed for healthcheck
+# Create build directory
+RUN mkdir -p build/posts
+
+# Expose port
+EXPOSE 8000
+
+# Use ENTRYPOINT to specify the binary name
+ENTRYPOINT ["gunicorn"]
+
+# Use CMD to specify arguments to ENTRYPOINT
+CMD ["server.server:application", "--bind", "0.0.0.0:8000", "--workers", "2"]
+
+### Local development stage ###
+FROM deploy AS local
+
+# Install additional tools for development
 RUN apt-get update && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
+# Override for development
 ENV DEBUG=True
 
-EXPOSE 8000
+# Override ENTRYPOINT inherited from deploy so local stage runs python directly
+ENTRYPOINT ["python"]
 
-CMD ["python", "-m", "server.server", "runserver", "0.0.0.0:8000"]
-
-
-# ══════════════════════════════════════════════════════════════════════════════
-# Deploy Stage
-# Production image: Gunicorn, DEBUG=False, minimal footprint.
-#
-# Usage:  docker build --target deploy -t myapp:deploy -f docker/Dockerfile .
-#         docker run -p 8000:8000 --env-file configs/deploy/.env myapp:deploy
-# ══════════════════════════════════════════════════════════════════════════════
-FROM base AS deploy
-
-RUN pip install --no-cache-dir gunicorn
-
-ENV DEBUG=False
-
-EXPOSE 8000
-
-# 2 workers is a safe default; tune with WEB_CONCURRENCY env var if needed
-CMD ["gunicorn", "server.server:application", \
-     "--bind",            "0.0.0.0:8000", \
-     "--workers",         "2", \
-     "--timeout",         "60", \
-     "--access-logfile",  "-", \
-     "--error-logfile",   "-"]
+# Use Django runserver for hot reload
+CMD ["-m", "server.server", "runserver", "0.0.0.0:8000"]

@@ -1,73 +1,9 @@
-# docker/cloudbuild.yaml
-#
-# GCP Cloud Build pipeline. Triggered on push to `main`.
-# Pipeline: test → build deploy image → push to Artifact Registry → deploy to Cloud Run
-#
-# Substitution variables — set in the Cloud Build trigger UI:
-#   _REGION        e.g. us-central1
-#   _SERVICE_NAME  e.g. myapp
-#   _REPO          e.g. us-central1-docker.pkg.dev/$PROJECT_ID/myapp/myapp
-
-substitutions:
-  _REGION:       us-central1
-  _SERVICE_NAME: myapp
-  _REPO:         us-central1-docker.pkg.dev/$PROJECT_ID/myapp/myapp
-
 steps:
-
-  # ── 1. Run tests (test stage) ────────────────────────────────────────────
-  - name: gcr.io/cloud-builders/docker
-    id: test
-    args:
-      - build
-      - --target=test
-      - --tag=myapp:test
-      - --file=docker/Dockerfile
-      - .
-  - name: gcr.io/cloud-builders/docker
-    id: run-tests
-    args: [run, --rm, myapp:test]
-    waitFor: [test]
-
-  # ── 2. Build production (deploy stage) ──────────────────────────────────
-  - name: gcr.io/cloud-builders/docker
-    id: build-deploy
-    args:
-      - build
-      - --target=deploy
-      - --tag=$_REPO:$SHORT_SHA
-      - --tag=$_REPO:latest
-      - --file=docker/Dockerfile
-      - .
-    waitFor: [run-tests]
-
-  # ── 3. Push to Artifact Registry ────────────────────────────────────────
-  - name: gcr.io/cloud-builders/docker
-    id: push
-    args: [push, --all-tags, $_REPO]
-    waitFor: [build-deploy]
-
-  # ── 4. Deploy to Cloud Run ───────────────────────────────────────────────
-  - name: gcr.io/google.com/cloudsdktool/cloud-sdk
-    id: deploy
-    entrypoint: gcloud
-    args:
-      - run
-      - deploy
-      - $_SERVICE_NAME
-      - --image=$_REPO:$SHORT_SHA
-      - --region=$_REGION
-      - --platform=managed
-      - --allow-unauthenticated
-      - --port=8000
-      - --set-env-vars=DJANGO_SETTINGS_MODULE=settings,DEBUG=False
-      # Uncomment to pull secret from Secret Manager:
-      # - --set-secrets=DJANGO_SECRET_KEY=django-secret-key:latest
-    waitFor: [push]
-
-images:
-  - $_REPO:$SHORT_SHA
-  - $_REPO:latest
-
-options:
-  logging: CLOUD_LOGGING_ONLY
+- name: 'gcr.io/cloud-builders/docker'
+  args: [
+    'build',
+    '-f', 'docker/Dockerfile',
+    '-t', 'gcr.io/$PROJECT_ID/mabuhive:latest',
+    '.'
+  ]
+images: ['gcr.io/$PROJECT_ID/mabuhive:latest']

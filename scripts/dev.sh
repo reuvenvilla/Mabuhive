@@ -11,7 +11,7 @@
 set -euo pipefail
 cd "$(dirname "$0")/.."            # always run from project root
 
-IMAGE="myapp:ubuntu"
+IMAGE="mabuhive:ubuntu"
 REBUILD=false
 MODE="shell"
 
@@ -24,7 +24,7 @@ done
 
 # ── Build image if needed ─────────────────────────────────────────────────────
 if [[ "$REBUILD" == true ]] || ! docker image inspect "$IMAGE" &>/dev/null; then
-  echo "🔨  Building Ubuntu dev image..."
+  echo "Building Ubuntu dev image..."
   docker build \
     --file  docker/Dockerfile.ubuntu \
     --tag   "$IMAGE" \
@@ -41,7 +41,7 @@ DOCKER_ARGS=(
   --workdir /app                          # start in /app
   --env-file configs/local/.env           # load local env vars
   --publish 8000:8000                     # expose Django dev server port
-  --name myapp-dev
+  --name mabuhive-dev
 )
 
 if [[ "$MODE" == "run" ]]; then

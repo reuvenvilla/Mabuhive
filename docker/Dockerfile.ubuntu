@@ -2,7 +2,7 @@
 # Interactive Ubuntu development environment.
 # Project root is bind-mounted to /app at runtime (see scripts/dev.sh).
 #
-# Build:  docker build -f docker/Dockerfile.ubuntu -t myapp:ubuntu .
+# Build:  docker build -f docker/Dockerfile.ubuntu -t mabuhive:ubuntu .
 # Run:    ./scripts/dev.sh
 
 FROM ubuntu:22.04

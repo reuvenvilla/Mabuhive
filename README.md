@@ -19,7 +19,7 @@ chmod +x scripts/*.sh
 
 ```bash
 ./scripts/build.sh local
-docker run --rm -p 8000:8000 --env-file configs/local/.env myapp:local
+docker run --rm -p 8000:8000 --env-file configs/local/.env mabuhive:local
 # → http://localhost:8000
 ```
 
@@ -111,9 +111,10 @@ project/
 ## Docker targets
 
 ```
-docker build --target local  -t myapp:local  -f docker/Dockerfile .
-docker build --target test   -t myapp:test   -f docker/Dockerfile .
-docker build --target deploy -t myapp:deploy -f docker/Dockerfile .
+docker build --target base   -t mabuhive:base   -f docker/Dockerfile .
+docker build --target local  -t mabuhive:local  -f docker/Dockerfile .
+docker build --target test   -t mabuhive:test   -f docker/Dockerfile .
+docker build --target deploy -t mabuhive:deploy -f docker/Dockerfile .
 ```
 
 Or via the script: `./scripts/build.sh [local|test|deploy]`
@@ -141,7 +142,7 @@ gcloud services enable \
   run.googleapis.com \
   artifactregistry.googleapis.com
 
-gcloud artifacts repositories create myapp \
+gcloud artifacts repositories create mabuhive \
   --repository-format=docker --location=us-central1
 ```
 
@@ -150,7 +151,7 @@ Set these substitution variables in the Cloud Build trigger UI:
 | Variable        | Example                                                        |
 |-----------------|----------------------------------------------------------------|
 | `_REGION`       | `us-central1`                                                  |
-| `_SERVICE_NAME` | `myapp`                                                        |
-| `_REPO`         | `us-central1-docker.pkg.dev/YOUR_PROJECT/myapp/myapp`          |
+| `_SERVICE_NAME` | `mabuhive`                                                     |
+| `_REPO`         | `us-central1-docker.pkg.dev/YOUR_PROJECT/mabuhive/mabuhive`    |
 
 Push to `main` → pipeline runs automatically.
