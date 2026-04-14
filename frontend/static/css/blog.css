@@ -1,0 +1,82 @@
+/* blog.css — styles specific to the blog page */
+
+.blog-layout {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 1.5rem;
+  align-items: start;
+}
+@media (max-width: 768px) { .blog-layout { grid-template-columns: 1fr; } }
+
+/* ── Topic nav ────────────────────────────────────────────────────────────── */
+.topic-nav   { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 1.25rem; }
+.topic-btn {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  border-radius: 20px;
+  padding: 0.25rem 0.9rem;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+  transition: background 0.15s, color 0.15s;
+}
+.topic-btn:hover  { background: #eee; color: var(--color-text); }
+.topic-btn.active { background: var(--color-primary); border-color: var(--color-primary); color: #fff; }
+
+/* ── Post card ────────────────────────────────────────────────────────────── */
+.post-card {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: 1.25rem 1.5rem;
+  margin-bottom: 1rem;
+  box-shadow: var(--shadow);
+  border-left: 4px solid var(--color-primary);
+}
+.post-topic       { font-size: 0.7rem; font-weight: 700; text-transform: uppercase;
+                    letter-spacing: 0.07em; color: var(--color-primary); display: block;
+                    margin-bottom: 0.35rem; }
+.post-title       { font-size: 1.1rem; font-weight: 700; margin-bottom: 0.3rem; }
+.post-description { font-size: 0.88rem; color: var(--color-muted); margin-bottom: 0.5rem; }
+.post-body        { font-size: 0.92rem; line-height: 1.6; margin-bottom: 0.75rem; }
+.post-meta        { font-size: 0.78rem; color: var(--color-muted); }
+
+/* ── Post form ────────────────────────────────────────────────────────────── */
+.post-form {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  padding: 1.5rem;
+  box-shadow: var(--shadow);
+  position: sticky;
+  top: 1rem;
+}
+.post-form h2    { margin-bottom: 1rem; font-size: 1.1rem; }
+.post-form label { display: flex; flex-direction: column; gap: 0.25rem;
+                   font-size: 0.82rem; font-weight: 600; color: #444;
+                   margin-bottom: 0.65rem; }
+.post-form input,
+.post-form textarea {
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.9rem;
+  font-family: inherit;
+  transition: border-color 0.15s;
+}
+.post-form input:focus,
+.post-form textarea:focus  { outline: none; border-color: var(--color-primary); }
+.post-form textarea        { resize: vertical; }
+.post-form button[type=submit] {
+  display: block; width: 100%; margin-top: 1rem;
+  padding: 0.65rem; background: var(--color-primary); color: #fff;
+  border: none; border-radius: 6px; font-size: 1rem; font-weight: 600;
+  cursor: pointer; transition: background 0.15s;
+}
+.post-form button:hover:not(:disabled) { background: var(--color-primary-dk); }
+.post-form button:disabled             { background: #ccc; cursor: not-allowed; }
+
+.form-error   { margin-top: 0.5rem; color: #c0392b; font-size: 0.85rem; }
+.form-success { margin-top: 0.5rem; color: #1a7a4a; font-size: 0.85rem; }
+
+/* ── Status messages ──────────────────────────────────────────────────────── */
+.status-msg       { color: var(--color-muted); font-style: italic; padding: 1rem 0; }
+.status-msg.error { color: #c0392b; }

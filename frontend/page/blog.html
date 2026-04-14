@@ -1,0 +1,104 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Blog</title>
+
+  <!-- Styles -->
+  <link rel="stylesheet" href="/api/static/css/global.css" />
+  <link rel="stylesheet" href="/api/static/css/blog.css" />
+
+  <!-- React (inline CDN — no build step required) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+
+  <div id="root"></div>
+
+  <!-- Shared utilities -->
+  <script src="/api/static/js/utils.js"></script>
+
+  <!-- Reusable components -->
+  <script type="text/babel" src="/api/static/js/components/NavBar.jsx"></script>
+  <script type="text/babel" src="/api/static/js/components/PostCard.jsx"></script>
+  <script type="text/babel" src="/api/static/js/components/PostForm.jsx"></script>
+
+  <!-- Blog page -->
+  <script type="text/babel">
+    const { useState, useEffect } = React;
+
+    const TOPICS = ["all", "tech", "fitness", "food", "lifestyle"];
+
+    function BlogPage() {
+      const [posts, setPosts]         = useState([]);
+      const [activeTopic, setTopic]   = useState("all");
+      const [status, setStatus]       = useState("loading");
+
+      useEffect(() => {
+        fetchPosts(activeTopic);
+      }, [activeTopic]);
+
+      async function fetchPosts(topic) {
+        setStatus("loading");
+        try {
+          const url = topic === "all" ? "/api/blog/posts/" : `/api/blog/posts/${topic}/`;
+          const data = await apiFetch(url);
+          setPosts(data.posts || []);
+          setStatus("ready");
+        } catch (err) {
+          setStatus(`error: ${err.message}`);
+        }
+      }
+
+      async function handleNewPost(payload) {
+        await apiFetch("/api/blog/posts/", { method: "POST", body: JSON.stringify(payload) });
+        fetchPosts(activeTopic);
+      }
+
+      return (
+        <div className="page">
+          <NavBar activePage="blog" />
+
+          <main className="blog-layout container">
+            {/* ── Feed ── */}
+            <section className="feed-panel">
+              <nav className="topic-nav">
+                {TOPICS.map(t => (
+                  <button
+                    key={t}
+                    className={`topic-btn${activeTopic === t ? " active" : ""}`}
+                    onClick={() => setTopic(t)}
+                  >
+                    {t.charAt(0).toUpperCase() + t.slice(1)}
+                  </button>
+                ))}
+              </nav>
+
+              {status === "loading" && <p className="status-msg">Loading…</p>}
+              {status.startsWith("error") && <p className="status-msg error">{status}</p>}
+              {status === "ready" && posts.length === 0 && (
+                <p className="status-msg">No posts yet. Be the first!</p>
+              )}
+              {status === "ready" && posts.map(p => (
+                <PostCard key={p.id} post={p} />
+              ))}
+            </section>
+
+            {/* ── Create form ── */}
+            <aside className="form-panel">
+              <PostForm onSubmit={handleNewPost} />
+            </aside>
+          </main>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<BlogPage />);
+  </script>
+
+</body>
+</html>

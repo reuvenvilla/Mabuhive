@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Home</title>
+
+  <!-- Global styles -->
+  <link rel="stylesheet" href="/api/static/css/global.css" />
+
+  <!-- React (inline CDN — no build step required) -->
+  <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+  <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+  <!-- Babel standalone: transforms JSX in the browser -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+</head>
+<body>
+
+  <div id="root"></div>
+
+  <!-- Shared utilities (plain JS — no JSX) -->
+  <script src="/api/static/js/utils.js"></script>
+
+  <!-- Reusable React components -->
+  <script type="text/babel" src="/api/static/js/components/NavBar.jsx"></script>
+
+  <!-- Page bootstrap -->
+  <script type="text/babel">
+    function HomePage() {
+      return (
+        <div className="page">
+          <NavBar activePage="home" />
+          <main className="container">
+            <h1>Welcome</h1>
+            <p>This is the home page. Navigate to <a href="/blog">/blog</a> to see the blog.</p>
+          </main>
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById("root"));
+    root.render(<HomePage />);
+  </script>
+
+</body>
+</html>

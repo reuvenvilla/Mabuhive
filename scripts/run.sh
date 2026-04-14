@@ -1,16 +1,43 @@
 #!/usr/bin/env bash
+# scripts/run.sh
+# Start the Django development server directly on the host (no Docker).
+#
+# Usage:
+#   ./scripts/run.sh           # runs on 0.0.0.0:8000
+#   ./scripts/run.sh 9000      # custom port
+
 set -euo pipefail
+cd "$(dirname "$0")/.."          # always run from project root
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IMAGE_NAME="mabuhive-prod"
-CONTAINER_NAME="mabuhive-prod"
+PORT="${1:-8000}"
 
-docker build -f "$ROOT_DIR/docker/Dockerfile" -t "$IMAGE_NAME" "$ROOT_DIR"
+# ── Resolve python binary (macOS uses python3) ────────────────────────────────
+PYTHON=$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)
+if [[ -z "$PYTHON" ]]; then
+  echo "❌  python3 not found. Install Python 3 and try again."
+  exit 1
+fi
 
-docker rm -f "$CONTAINER_NAME" >/dev/null 2>&1 || true
-docker run -d --rm \
-  --name "$CONTAINER_NAME" \
-  -p 8080:8080 \
-  "$IMAGE_NAME"
+# ── Check Django is installed ─────────────────────────────────────────────────
+if ! "$PYTHON" -c "import django" &>/dev/null; then
+  echo "⚠️  Django not found. Installing requirements..."
+  "$PYTHON" -m pip install -r requirements.txt
+fi
 
-echo "Prod container running at http://localhost:8080"
+# ── Load env vars ─────────────────────────────────────────────────────────────
+# Manually parse instead of `source` — avoids bash treating space-separated
+# values like ALLOWED_HOSTS="a b c" as shell commands.
+while IFS='=' read -r key value; do
+  [[ -z "$key" || "$key" == \#* ]] && continue   # skip blanks and comments
+  value="${value%\"}"                              # strip trailing quote
+  value="${value#\"}"                              # strip leading quote
+  export "$key=$value"
+done < configs/local/.env
+
+mkdir -p build/posts
+
+echo "🚀  Dev server -> http://localhost:${PORT}"
+echo "    Stop with Ctrl-C"
+echo ""
+
+"$PYTHON" -m server.server runserver "0.0.0.0:${PORT}"

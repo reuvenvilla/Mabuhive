@@ -1,69 +1,57 @@
 #!/usr/bin/env bash
+# scripts/dev.sh
+# Launch an interactive Ubuntu container with the project root bind-mounted to /app.
+# Any file you edit on your host is instantly visible inside the container, and vice versa.
+#
+# Usage:
+#   ./scripts/dev.sh              # enter bash shell
+#   ./scripts/dev.sh --rebuild    # force image rebuild, then enter shell
+#   ./scripts/dev.sh --run        # start the Django dev server inside Ubuntu
+
 set -euo pipefail
+cd "$(dirname "$0")/.."            # always run from project root
 
-ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-IMAGE_NAME="mabuhive-dev"
-CONTAINER_NAME="mabuhive-dev"
+IMAGE="myapp:ubuntu"
+REBUILD=false
+MODE="shell"
 
-DOCKERFILE_PATH="$ROOT_DIR/dev/Dockerfile"
+for arg in "$@"; do
+  case "$arg" in
+    --rebuild) REBUILD=true ;;
+    --run)     MODE="run"   ;;
+  esac
+done
 
-if [[ ! -f "$DOCKERFILE_PATH" ]]; then
-  echo "Error: Dockerfile not found at: $DOCKERFILE_PATH" >&2
-  echo "Expected: Mabuhive/dev/Dockerfile" >&2
-  exit 1
+# ── Build image if needed ─────────────────────────────────────────────────────
+if [[ "$REBUILD" == true ]] || ! docker image inspect "$IMAGE" &>/dev/null; then
+  echo "🔨  Building Ubuntu dev image..."
+  docker build \
+    --file  docker/Dockerfile.ubuntu \
+    --tag   "$IMAGE" \
+    .
+  echo ""
 fi
 
-# Build dev image
-docker build -f "$DOCKERFILE_PATH" -t "$IMAGE_NAME" "$ROOT_DIR"
+# ── Common docker run args ────────────────────────────────────────────────────
+DOCKER_ARGS=(
+  --rm                                    # remove container on exit
+  --interactive                           # keep stdin open
+  --tty                                   # allocate a pseudo-TTY
+  --volume "$(pwd):/app"                  # bind-mount project root → /app
+  --workdir /app                          # start in /app
+  --env-file configs/local/.env           # load local env vars
+  --publish 8000:8000                     # expose Django dev server port
+  --name myapp-dev
+)
 
-# Run container if not already running
-if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER_NAME}$"; then
-  # Optional: allow docker commands inside dev container (controls host docker)
-  SOCK_ARGS=()
-  if [[ -S /var/run/docker.sock ]]; then
-    SOCK_ARGS=(-v /var/run/docker.sock:/var/run/docker.sock)
-  fi
-
-  # Workspace mount
-  WS_ARGS=(-v "$ROOT_DIR:/workspace:delegated" -w /workspace)
-
-  # Prefer ssh-agent forwarding when possible; fallback to mounting ~/.ssh read-only
-  SSH_ARGS=()
-
-  # Test whether Docker can mount a given path on this host
-  can_mount_path() {
-    local p="$1"
-    docker run --rm \
-      -v "$p:$p:ro" \
-      alpine:3.19 \
-      sh -lc "test -S '$p' || test -e '$p'" >/dev/null 2>&1
-  }
-
-  if [[ -n "${SSH_AUTH_SOCK:-}" && -S "${SSH_AUTH_SOCK}" ]]; then
-    if can_mount_path "${SSH_AUTH_SOCK}"; then
-      SSH_ARGS=(-v "${SSH_AUTH_SOCK}:/ssh-agent" -e SSH_AUTH_SOCK=/ssh-agent)
-    else
-      echo "Info: SSH agent socket is not mountable by Docker on this host; using ~/.ssh fallback."
-    fi
-  fi
-
-  if [[ ${#SSH_ARGS[@]} -eq 0 ]]; then
-    if [[ -d "${HOME}/.ssh" ]]; then
-      SSH_ARGS=(-v "${HOME}/.ssh:/root/.ssh:ro")
-    else
-      echo "Warning: ${HOME}/.ssh not found; GitHub SSH may not work inside the container." >&2
-    fi
-  fi
-
-  docker run -dit --rm \
-  --name "$CONTAINER_NAME" \
-  -v "$ROOT_DIR:/workspace:delegated" \
-  -v "${HOME}/.gitconfig:/root/.gitconfig:ro" \
-  "${SOCK_ARGS[@]}" \
-  "${SSH_ARGS[@]}" \
-  -w /workspace \
-  "$IMAGE_NAME"
+if [[ "$MODE" == "run" ]]; then
+  echo "🚀  Starting Django dev server inside Ubuntu container..."
+  echo "    http://localhost:8000"
+  docker run "${DOCKER_ARGS[@]}" "$IMAGE" \
+    bash -c "mkdir -p /app/build/posts && python -m server.server runserver 0.0.0.0:8000"
+else
+  echo "🐧  Entering Ubuntu dev container  (project root → /app)"
+  echo "    Type 'exit' or Ctrl-D to leave."
+  echo ""
+  docker run "${DOCKER_ARGS[@]}" "$IMAGE"
 fi
-
-# Attach shell
-docker exec -it "$CONTAINER_NAME" bash

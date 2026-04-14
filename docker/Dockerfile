@@ -1,30 +1,100 @@
-# Mabuhive/docker/Dockerfile
-FROM ubuntu:22.04
+# docker/Dockerfile
+#
+# Three build targets — select with --target flag:
+#
+#   docker build --target local  -t myapp:local  -f docker/Dockerfile .
+#   docker build --target test   -t myapp:test   -f docker/Dockerfile .
+#   docker build --target deploy -t myapp:deploy -f docker/Dockerfile .
+#
+# Or via scripts/:
+#   ./scripts/build.sh local
+#   ./scripts/build.sh test
+#   ./scripts/build.sh deploy
 
-ENV DEBIAN_FRONTEND=noninteractive \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Stage 1 — base
+# Shared foundation: installs dependencies, copies source.
+# No CMD — not meant to be run directly.
+# ══════════════════════════════════════════════════════════════════════════════
+FROM python:3.12-slim AS base
+
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    # Project root is the WORKDIR, so `import settings` resolves correctly
+    PYTHONPATH=/app \
+    DJANGO_SETTINGS_MODULE=settings
 
 WORKDIR /app
 
-RUN apt-get update && apt-get install -y --no-install-recommends \
-    ca-certificates \
-    python3 \
-    python3-pip \
-  && rm -rf /var/lib/apt/lists/*
+# Install Python dependencies (cached layer — only rebuilds if requirements.txt changes)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-RUN ln -sf /usr/bin/python3 /usr/bin/python
+# Copy full project source
+COPY . .
 
-# Install deps first for caching
-COPY src/backend/requirements.txt /app/src/backend/requirements.txt
-RUN pip3 install --no-cache-dir -r /app/src/backend/requirements.txt
+# Create the build output directory (git-ignored on host)
+RUN mkdir -p /app/build/posts
 
-# Copy source
-COPY src/ /app/src/
-COPY docker/entrypoint.sh /app/entrypoint.sh
-RUN chmod +x /app/entrypoint.sh
 
-EXPOSE 8080
+# ══════════════════════════════════════════════════════════════════════════════
+# Stage 2 — test
+# Runs the test suite. Used in CI before building the deploy image.
+# Exit code reflects pass/fail so Cloud Build can gate on it.
+#
+# Usage:  docker build --target test -t myapp:test -f docker/Dockerfile .
+#         docker run --rm myapp:test
+# ══════════════════════════════════════════════════════════════════════════════
+FROM base AS test
 
-ENTRYPOINT ["/app/entrypoint.sh"]
-CMD ["gunicorn", "--chdir", "src/backend", "--bind", "0.0.0.0:8080", "backend.wsgi:application"]
+ENV DEBUG=True
+
+# pytest + pytest-django already in requirements.txt
+CMD ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Stage 3a — local
+# Django development server with DEBUG=True.
+# Source should be bind-mounted for hot-reload:
+#   docker run -v $(pwd):/app -p 8000:8000 myapp:local
+#
+# Usage:  docker build --target local -t myapp:local -f docker/Dockerfile .
+#         docker run -v $(pwd):/app -p 8000:8000 --env-file configs/local/.env myapp:local
+# ══════════════════════════════════════════════════════════════════════════════
+FROM base AS local
+
+# curl needed for healthcheck
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV DEBUG=True
+
+EXPOSE 8000
+
+CMD ["python", "-m", "server.server", "runserver", "0.0.0.0:8000"]
+
+
+# ══════════════════════════════════════════════════════════════════════════════
+# Stage 3b — deploy
+# Production image: Gunicorn, DEBUG=False, minimal footprint.
+#
+# Usage:  docker build --target deploy -t myapp:deploy -f docker/Dockerfile .
+#         docker run -p 8000:8000 --env-file configs/deploy/.env myapp:deploy
+# ══════════════════════════════════════════════════════════════════════════════
+FROM base AS deploy
+
+RUN pip install --no-cache-dir gunicorn
+
+ENV DEBUG=False
+
+EXPOSE 8000
+
+# 2 workers is a safe default; tune with WEB_CONCURRENCY env var if needed
+CMD ["gunicorn", "server.server:application", \
+     "--bind",            "0.0.0.0:8000", \
+     "--workers",         "2", \
+     "--timeout",         "60", \
+     "--access-logfile",  "-", \
+     "--error-logfile",   "-"]

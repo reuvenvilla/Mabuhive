@@ -1,0 +1,49 @@
+# docker/Dockerfile.ubuntu
+# Interactive Ubuntu development environment.
+# Project root is bind-mounted to /app at runtime (see scripts/dev.sh).
+#
+# Build:  docker build -f docker/Dockerfile.ubuntu -t myapp:ubuntu .
+# Run:    ./scripts/dev.sh
+
+FROM ubuntu:22.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app
+
+# ── System packages ───────────────────────────────────────────────────────────
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    # Python
+    python3 \
+    python3-pip \
+    python3-venv \
+    # Utilities
+    curl \
+    wget \
+    git \
+    vim \
+    nano \
+    less \
+    tree \
+    make \
+    # Networking
+    iputils-ping \
+    net-tools \
+    && rm -rf /var/lib/apt/lists/*
+
+# Make `python` and `pip` resolve to python3
+RUN ln -sf /usr/bin/python3 /usr/bin/python \
+ && ln -sf /usr/bin/pip3    /usr/bin/pip
+
+# ── Working directory ─────────────────────────────────────────────────────────
+# Matches the bind-mount target in dev.sh — project root lands here.
+WORKDIR /app
+
+# ── Install Python deps at build time ────────────────────────────────────────
+# Copied in so the layer is cached; the live bind-mount overlays it at runtime.
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# ── Default: interactive bash shell ───────────────────────────────────────────
+CMD ["/bin/bash"]
