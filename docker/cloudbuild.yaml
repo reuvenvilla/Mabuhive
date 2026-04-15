@@ -1,47 +1,40 @@
 steps:
-# Build base stage
-- name: 'gcr.io/cloud-builders/docker'
-  args: [
-    'build',
-    '-f', 'docker/Dockerfile',
-    '--target', 'base',
-    '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/mabuhive/mabuhive:base',
-    '.'
-  ]
+  # 1. Build base stage
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-f', 'docker/Dockerfile',
+      '--target', 'base',
+      '-t', 'gcr.io/$PROJECT_ID/mabuhive:base',
+      '.'
+    ]
 
-# Build deploy stage as latest
-- name: 'gcr.io/cloud-builders/docker'
-  args: [
-    'build',
-    '-f', 'docker/Dockerfile',
-    '--target', 'deploy',
-    '-t', 'us-central1-docker.pkg.dev/$PROJECT_ID/mabuhive/mabuhive:latest',
-    '.'
-  ]
+  # 2. Build deploy stage as latest
+  - name: 'gcr.io/cloud-builders/docker'
+    args: [
+      'build',
+      '-f', 'docker/Dockerfile',
+      '--target', 'deploy',
+      '-t', 'gcr.io/$PROJECT_ID/mabuhive:latest',
+      '.'
+    ]
 
-# Push base image
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/mabuhive/mabuhive:base']
+  # 3. If _RELEASE is set, tag latest as release
+  # Note: The images block below will handle the actual pushing
+  - name: 'gcr.io/cloud-builders/docker'
+    entrypoint: 'bash'
+    args:
+    - '-c'
+    - |
+      if [[ "${_RELEASE}" == "true" ]]; then
+        docker tag gcr.io/$PROJECT_ID/mabuhive:latest gcr.io/$PROJECT_ID/mabuhive:release
+      fi
 
-# Push latest image
-- name: 'gcr.io/cloud-builders/docker'
-  args: ['push', 'us-central1-docker.pkg.dev/$PROJECT_ID/mabuhive/mabuhive:latest']
-
-# If _RELEASE is set, tag latest as release and push
-- name: 'gcr.io/cloud-builders/docker'
-  entrypoint: 'bash'
-  args:
-  - '-c'
-  - |
-    if [[ "${_RELEASE}" == "true" ]]; then
-      docker tag us-central1-docker.pkg.dev/$PROJECT_ID/mabuhive/mabuhive:latest us-central1-docker.pkg.dev/$PROJECT_ID/mabuhive/mabuhive:release
-      docker push us-central1-docker.pkg.dev/$PROJECT_ID/mabuhive/mabuhive:release
-    fi
-
+# Automatically pushes all built/tagged images to GCR
 images:
-- 'us-central1-docker.pkg.dev/$PROJECT_ID/mabuhive/mabuhive:base'
-- 'us-central1-docker.pkg.dev/$PROJECT_ID/mabuhive/mabuhive:latest'
-- 'us-central1-docker.pkg.dev/$PROJECT_ID/mabuhive/mabuhive:release'
+  - 'gcr.io/$PROJECT_ID/mabuhive:base'
+  - 'gcr.io/$PROJECT_ID/mabuhive:latest'
+  - 'gcr.io/$PROJECT_ID/mabuhive:release'
 
 substitutions:
-  _RELEASE: 'false'  # Set to 'true' to also build and push release tag
+  _RELEASE: 'false'
