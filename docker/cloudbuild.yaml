@@ -19,8 +19,7 @@ steps:
       '.'
     ]
 
-  # 3. If _RELEASE is set, tag latest as release
-  # Note: The images block below will handle the actual pushing
+  # 3. Conditional tag AND push for release
   - name: 'gcr.io/cloud-builders/docker'
     entrypoint: 'bash'
     args:
@@ -28,13 +27,13 @@ steps:
     - |
       if [[ "${_RELEASE}" == "true" ]]; then
         docker tag gcr.io/$PROJECT_ID/mabuhive:latest gcr.io/$PROJECT_ID/mabuhive:release
+        docker push gcr.io/$PROJECT_ID/mabuhive:release
       fi
 
-# Automatically pushes all built/tagged images to GCR
+# MANDATORY: Only list images that are built every single time.
 images:
   - 'gcr.io/$PROJECT_ID/mabuhive:base'
   - 'gcr.io/$PROJECT_ID/mabuhive:latest'
-  - 'gcr.io/$PROJECT_ID/mabuhive:release'
 
 substitutions:
   _RELEASE: 'false'

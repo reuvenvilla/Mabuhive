@@ -1,0 +1,1 @@
+gcloud builds submit --config ./docker/cloudbuild.yaml --substitutions=_RELEASE=true .
