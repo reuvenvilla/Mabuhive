@@ -14,7 +14,7 @@ DEBUG      = os.environ.get("DEBUG", "True") == "True"
 # settings.py
 raw_hosts = os.environ.get("ALLOWED_HOSTS", "").strip()
 if not raw_hosts:
-    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0"]
+    ALLOWED_HOSTS = ["localhost", "127.0.0.1", "0.0.0.0", "10.138.0.2", "136.118.94.124"]
 else:
     ALLOWED_HOSTS = [h.strip() for h in raw_hosts.split(",")]
 # ── Apps & Middleware ─────────────────────────────────────────────────────────
