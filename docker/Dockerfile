@@ -47,8 +47,8 @@ RUN pip install --no-cache-dir -r requirements.txt gunicorn
 COPY --from=builder /usr/src/project /app
 WORKDIR /app
 
-# Create build directory
-RUN mkdir -p build/posts
+# Create local-storage directory used by /api/* CRUD endpoints
+RUN mkdir -p mnt
 
 # Expose port
 EXPOSE 8000

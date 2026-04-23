@@ -1,5 +1,5 @@
 """
-server/echohandler.py
+api/echo.py
 
 Echoes back the full HTTP request as JSON.
 Route: ALL methods → /api/echo
@@ -7,7 +7,7 @@ Route: ALL methods → /api/echo
 Useful for:
   - Debugging what headers/body the client is sending
   - Verifying NGINX proxy_pass headers are forwarded correctly
-  - Testing that the dispatcher is routing correctly
+  - Smoke-testing that the router is wired up
 
 Example response:
   {
@@ -30,13 +30,7 @@ class EchoHandler(View):
 
     def dispatch(self, request, *args, **kwargs):
         """Override dispatch so every method hits the same echo logic."""
-        return self._echo(request)
-
-    # ── Private ───────────────────────────────────────────────────────────────
-
-    def _echo(self, request) -> JsonResponse:
         body = self._parse_body(request)
-
         payload = {
             "method":       request.method,
             "path":         request.path,
@@ -44,7 +38,6 @@ class EchoHandler(View):
             "query_params": dict(request.GET.lists()),   # preserves multi-values
             "body":         body,
         }
-
         return JsonResponse(payload, json_dumps_params={"indent": 2})
 
     @staticmethod

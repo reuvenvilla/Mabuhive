@@ -1,5 +1,5 @@
 /**
- * frontend/static/js/components/ProfileSubpage.jsx
+ * public/js/ProfileSubpage.jsx
  * Profile page content component.
  */
 

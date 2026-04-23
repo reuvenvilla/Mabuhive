@@ -1,5 +1,5 @@
 /**
- * frontend/static/js/components/NavBar.jsx
+ * public/js/NavBar.jsx
  * Loaded via <script type="text/babel"> — Babel standalone transforms JSX in-browser.
  * Depends on: React (global from CDN)
  */

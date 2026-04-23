@@ -1,5 +1,5 @@
 /**
- * frontend/static/js/components/HivesSubpage.jsx
+ * public/js/HivesSubpage.jsx
  * Hives page content component.
  */
 

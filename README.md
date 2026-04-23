@@ -2,9 +2,9 @@
 
 **Python · Django · JavaScript · React (CDN) · HTML · NGINX · Docker · GCP Cloud Build**
 
-Flexible handler/dispatcher architecture — adding a new endpoint means adding a
-handler file and one line in `server/dispatcher.py`. No database yet; storage is
-local files under `build/`.
+Flat handler/router architecture — adding a new endpoint means adding a handler
+file and one line in `server/router.py`. No database yet; CRUD endpoints write
+straight to local files under `mnt/`.
 
 ---
 
@@ -33,47 +33,36 @@ project/
 ├── settings.py                 Django settings (root-level, DJANGO_SETTINGS_MODULE=settings)
 ├── .gitignore
 │
-├── build/                      ← git-ignored, created at runtime
-│   └── posts/                    local post storage (JSON files)
+├── mnt/                        Local CRUD storage — folder kept in git, contents gitignored
 │
 ├── docker/
 │   ├── Dockerfile              Multi-stage: base → test / local / deploy
 │   └── cloudbuild.yaml         GCP CI/CD: test → build → push → deploy
 │
 ├── configs/
-│   ├── local/
-│   │   ├── .env                Safe dev defaults (committed)
-│   │   └── nginx.conf          Pass-through proxy (Django serves static in dev)
-│   ├── test/
-│   │   ├── .env                CI-safe values (committed)
-│   │   └── nginx.conf          Mirrors production routing
-│   └── deploy/
-│       ├── .env.example        Template only — real values via Secret Manager
-│       └── nginx.conf          Hardened: security headers, 30-day static cache
+│   ├── local/   (.env, nginx.conf — pass-through proxy)
+│   ├── test/    (.env, nginx.conf — mirrors prod routing)
+│   └── deploy/  (.env.example, nginx.conf — security headers + 30d cache)
 │
-├── server/
-│   ├── __init__.py
-│   ├── server.py               WSGI app + CLI entry point (acts as manage.py)
-│   ├── dispatcher.py           URI → handler routing table
-│   ├── statichandler.py        GET  /api/static/<filepath>
-│   ├── echohandler.py          ALL  /api/echo
-│   └── sitehandler.py          GET  /<page_name> → frontend/page/<page>.html
+├── server/                     HTTP server logic
+│   ├── server.py               WSGI app + CLI entry + SiteHandler (page serving)
+│   ├── router.py               URI → handler routing table
+│   └── static.py               StaticHandler — serves /public/<filepath>
 │
-├── frontend/
-│   ├── page/
-│   │   ├── home.html           Served at /
-│   │   └── blog.html           Served at /blog
-│   ├── components/             Placeholder for server-side partials (if needed)
-│   └── static/
-│       ├── css/
-│       │   ├── global.css      Shared CSS variables and base styles
-│       │   └── blog.css        Blog-page-specific styles
-│       └── js/
-│           ├── utils.js        Shared helpers: apiFetch, formatDate, el()
-│           └── components/     React components (JSX, loaded via Babel CDN)
-│               ├── NavBar.jsx
-│               ├── PostCard.jsx
-│               └── PostForm.jsx
+├── api/                        CRUD endpoints — each route in its own file
+│   ├── __init__.py             Shared helpers (MNT_ROOT, resolve_path, json_error)
+│   ├── create.py               POST   /api/create?path=...
+│   ├── read.py                 GET    /api/read?path=...
+│   ├── update.py               PUT    /api/update?path=...
+│   ├── delete.py               DELETE /api/delete?path=...&recursive=...
+│   └── echo.py                 ALL    /api/echo  (debug)
+│
+├── public/                     Frontend — served as-is at /public/<filepath>
+│   ├── home.html, blog.html, hives.html, journal.html, profile.html, quests.html
+│   ├── css/                    (global.css, …)
+│   ├── js/                     (utils.js, default_page.js, NavBar.jsx, *Subpage.jsx, …)
+│   ├── data/                   Static data files
+│   └── images/                 Static images
 │
 ├── scripts/
 │   ├── run.sh                  Run dev server directly (no Docker)
@@ -90,21 +79,25 @@ project/
 
 ## URI routing
 
-| Method | URI                       | Handler          | Description                          |
-|--------|---------------------------|------------------|--------------------------------------|
-| `GET`  | `/`                       | `SiteHandler`    | Serves `frontend/page/home.html`     |
-| `GET`  | `/<page_name>`            | `SiteHandler`    | Serves `frontend/page/<page>.html`   |
-| `GET`  | `/api/static/<filepath>`  | `StaticHandler`  | Serves `frontend/static/<filepath>`  |
-| `ALL`  | `/api/echo`               | `EchoHandler`    | Echoes back the full HTTP request    |
+| Method   | URI                          | Handler          | Description                                  |
+|----------|------------------------------|------------------|----------------------------------------------|
+| `GET`    | `/`                          | `SiteHandler`    | Serves `public/home.html`                    |
+| `GET`    | `/<page_name>`               | `SiteHandler`    | Serves `public/<page_name>.html`             |
+| `GET`    | `/public/<filepath>`         | `StaticHandler`  | Serves files from `public/`                  |
+| `ALL`    | `/api/echo`                  | `EchoHandler`    | Echoes back the full HTTP request            |
+| `POST`   | `/api/create?path=<path>`    | `CreateHandler`  | Writes raw body to `mnt/<path>` (409 if exists) |
+| `GET`    | `/api/read?path=<path>`      | `ReadHandler`    | Returns file bytes, or JSON dir listing      |
+| `PUT`    | `/api/update?path=<path>`    | `UpdateHandler`  | Overwrites existing `mnt/<path>` (404 if missing) |
+| `DELETE` | `/api/delete?path=<path>`    | `DeleteHandler`  | Removes file or empty dir (`&recursive=true` to force) |
 
-### Adding a new handler
+### Adding a new endpoint
 
-1. Create `server/myhandler.py` with a class extending `django.views.View`
-2. Add one line to `server/dispatcher.py`:
-   ```python
-   path("api/my-route", MyHandler.as_view(), name="my-route"),
-   ```
-3. That's it.
+* **A new CRUD-ish API:** create `api/<name>.py` with a `View` subclass, then
+  add one `path("api/<name>", NameHandler.as_view(), …)` line to
+  `server/router.py`.
+* **A new server-side route (e.g. healthcheck):** add the handler to
+  `server/server.py` (small) or its own file in `server/`, then wire it in
+  `server/router.py`.
 
 ---
 
@@ -124,8 +117,8 @@ Or via the script: `./scripts/build.sh [local|test|deploy]`
 ## React (inline CDN)
 
 No npm or build step. Each HTML page loads React from CDN and Babel standalone
-for in-browser JSX transformation. Components live in `frontend/static/js/components/`
-as `.jsx` files and are loaded with `<script type="text/babel" src="...">`.
+for in-browser JSX transformation. Components live flat in `public/js/` as
+`.jsx` files and are loaded with `<script type="text/babel" src="...">`.
 
 ---
 

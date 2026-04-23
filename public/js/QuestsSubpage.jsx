@@ -1,5 +1,5 @@
 /**
- * frontend/static/js/components/QuestsSubpage.jsx
+ * public/js/QuestsSubpage.jsx
  * Quests page content component.
  */
 

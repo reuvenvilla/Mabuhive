@@ -1,5 +1,5 @@
 /**
- * frontend/static/js/components/JournalSubpage.jsx
+ * public/js/JournalSubpage.jsx
  * Journal page content component.
  */
 

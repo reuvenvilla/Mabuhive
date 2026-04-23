@@ -31,20 +31,21 @@ MIDDLEWARE = [
 ]
 
 # ── Routing ───────────────────────────────────────────────────────────────────
-# All URI → handler wiring lives in server/dispatcher.py
-# This part is responsible for redirecting to different hadlers
-# depending on the path described (website.com/api/* -> API Handler, etc)
-ROOT_URLCONF = "server.dispatcher"
+# All URI → handler wiring lives in server/router.py
+# This part is responsible for redirecting to different handlers
+# depending on the path described (website.com/api/* -> API handler, etc)
+ROOT_URLCONF = "server.router"
 
 # ── WSGI, Python specific, required for Django to run
 WSGI_APPLICATION = "server.server.application"
 
 # ── Templates ────────────────────────────────────────────────────────────────
-# sitehandler.py reads pages directly from disk; Django templates not used here.
+# SiteHandler (server/server.py) reads pages directly from disk; Django
+# templates aren't used here, but the DIRS entry keeps Django happy.
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [BASE_DIR / "frontend" / "page"],
+        "DIRS": [BASE_DIR / "public"],
         "APP_DIRS": False,
         "OPTIONS": {"context_processors": []},
     }
@@ -54,26 +55,25 @@ TEMPLATES = [
 DATABASES = {}
 
 # ── Storage paths ─────────────────────────────────────────────────────────────
-FRONTEND_DIR  = BASE_DIR / "frontend"
-PAGES_DIR     = FRONTEND_DIR / "page"
-STATIC_DIR    = FRONTEND_DIR / "static"
-BUILD_DIR     = BASE_DIR / "build"
+PUBLIC_DIR = BASE_DIR / "public"     # frontend assets + HTML pages
+MNT_DIR    = BASE_DIR / "mnt"        # local CRUD storage (gitignored contents)
+BUILD_DIR  = BASE_DIR / "build"      # collectstatic destination
 
 # ── Static files ──────────────────────────────────────────────────────────────
-# STATIC_URL must match the /api/static/ prefix used in the HTML pages.
+# STATIC_URL must match the /public/ prefix used in the HTML pages.
 #
 # How static file serving works by environment:
 #
 #   Development (runserver):
-#     Django StaticFilesHandler intercepts /api/static/* before the URL router,
+#     Django StaticFilesHandler intercepts /public/* before the URL router,
 #     finds files via STATICFILES_DIRS, and serves them directly.
 #
 #   Production (Gunicorn + NGINX):
 #     collectstatic gathers STATICFILES_DIRS into STATIC_ROOT.
-#     NGINX serves /api/static/* directly from STATIC_ROOT.
+#     NGINX serves /public/* directly from STATIC_ROOT.
 #
-STATIC_URL       = "/api/static/"
+STATIC_URL       = "/public/"
 STATIC_ROOT      = BUILD_DIR / "staticfiles"
-STATICFILES_DIRS = [STATIC_DIR]   # where our source static files live
+STATICFILES_DIRS = [PUBLIC_DIR]   # where our source static files live
 
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"

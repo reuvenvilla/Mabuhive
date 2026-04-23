@@ -48,7 +48,7 @@ if [[ "$MODE" == "run" ]]; then
   echo "   Starting Django dev server inside Ubuntu container..."
   echo "    http://localhost:8000"
   docker run "${DOCKER_ARGS[@]}" "$IMAGE" \
-    bash -c "mkdir -p /app/build/posts && python -m server.server runserver 0.0.0.0:8000"
+    bash -c "mkdir -p /app/mnt && python -m server.server runserver 0.0.0.0:8000"
 else
   echo "   Entering Ubuntu dev container  (project root → /app)"
   echo "    Type 'exit' or Ctrl-D to leave."

@@ -34,7 +34,7 @@ while IFS='=' read -r key value; do
   export "$key=$value"
 done < configs/local/.env
 
-mkdir -p build/posts
+mkdir -p mnt
 
 echo "   Dev server -> http://localhost:${PORT}"
 echo "    Stop with Ctrl-C"

@@ -1,5 +1,5 @@
 /**
- * frontend/static/js/utils.js
+ * public/js/utils.js
  * Plain JS utilities. Loaded on every page before any React/JSX.
  * Available as globals: apiFetch, formatDate, el
  */
