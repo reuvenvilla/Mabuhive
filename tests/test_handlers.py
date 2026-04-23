@@ -94,11 +94,6 @@ class TestSiteHandler:
         assert res.status_code == 200
         assert b"<!DOCTYPE html>" in res.content
 
-    def test_blog_page(self, client):
-        res = client.get("/blog")
-        assert res.status_code == 200
-        assert b"<!DOCTYPE html>" in res.content
-
     def test_missing_page_returns_404(self, client):
         res = client.get("/this-page-does-not-exist")
         assert res.status_code == 404

@@ -58,7 +58,7 @@ project/
 │   └── echo.py                 ALL    /api/echo  (debug)
 │
 ├── public/                     Frontend — served as-is at /public/<filepath>
-│   ├── home.html, blog.html, hives.html, journal.html, profile.html, quests.html
+│   ├── home.html, hives.html, journal.html, profile.html, quests.html
 │   ├── css/                    (global.css, …)
 │   ├── js/                     (utils.js, default_page.js, NavBar.jsx, *Subpage.jsx, …)
 │   ├── data/                   Static data files
