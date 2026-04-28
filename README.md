@@ -1,10 +1,9 @@
-# Project Boilerplate
-
+# MabuHive
 **Python · Django · JavaScript · React (CDN) · HTML · NGINX · Docker · GCP Cloud Build**
 
 Flat handler/router architecture — adding a new endpoint means adding a handler
 file and one line in `server/router.py`. No database yet; CRUD endpoints write
-straight to local files under `mnt/`.
+straight to local files under `mnt/`. . 
 
 ---
 
