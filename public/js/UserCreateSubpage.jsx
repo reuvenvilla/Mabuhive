@@ -75,18 +75,27 @@ function CreateUserPageContent() {
       return;
     }
 
-    // If they already have a record, send them home.
+    // Pre-fill the username straight away so the form is usable even if
+    // the existence check fails (e.g. transient 502).
+    setUsername(deriveUsernameSeed(session));
+
+    // If they already have a record, send them to their profile.
+    // Anything else (404, 502, network blip…) leaves them on the form.
     (async () => {
       const resp = await apiFetchAuthed("/api/users/me");
       if (resp.ok) {
         const me = await resp.json();
         window.location.replace(`/user/${me.username}`);
-      } else if (resp.status !== 404) {
+        return;
+      }
+      if (resp.status !== 404) {
         const data = await resp.json().catch(() => ({}));
-        setMsg({ kind: "err", text: data.error || `Failed (${resp.status})` });
-      } else {
-        // 404 — expected. Pre-fill the username from email.
-        setUsername(deriveUsernameSeed(session));
+        setMsg({
+          kind: "err",
+          text:
+            (data.error || `Couldn't check existing record (${resp.status}).`) +
+            " You can still try creating below.",
+        });
       }
     })();
   }, [authReady, session && session.user && session.user.id]);
@@ -128,6 +137,16 @@ function CreateUserPageContent() {
 
     if (!createResp.ok) {
       const data = await createResp.json().catch(() => ({}));
+      // 409 + "already exists" means our SELECT earlier was wrong (e.g. an
+      // RLS-denied or transient 502) but the row actually exists. Send
+      // them to /user so they can see it.
+      if (
+        createResp.status === 409 &&
+        /already exists/i.test(data.error || "")
+      ) {
+        window.location.replace("/user");
+        return;
+      }
       setMsg({ kind: "err", text: data.error || `Create failed (${createResp.status})` });
       setSubmitting(false);
       return;

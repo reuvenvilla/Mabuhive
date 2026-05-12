@@ -78,54 +78,155 @@ In the [Discord developer portal](https://discord.com/developers/applications):
 2. **OAuth2** tab → **Redirects** → add the Supabase callback URL from above → **Save Changes**.
 3. Copy the **Client ID** and **Client Secret** back into the Supabase Discord provider form, **Save**.
 
-## 7. (Optional) Create the `users` table in Supabase
+## 7. **Required:** create the `public.users` table
 
-The local file storage backend stores users in `mnt/data/users.json`. When you migrate to Supabase storage (`STORAGE_BACKEND=supabase`), create a table matching the local schema:
+User records are stored directly in Supabase Postgres. Authorisation is
+enforced by row-level-security policies — the backend forwards each
+caller's JWT to PostgREST so RLS sees the right `auth.uid()`. Before
+anything works, run this in **Supabase Dashboard → SQL editor → New query**:
 
 ```sql
--- run in Supabase SQL editor
+-- ── Table ────────────────────────────────────────────────────────────────
+-- Only the editable display-side bits live here. Email + OAuth provider
+-- stay in auth.users (the backend pulls them from the JWT on read).
 create table public.users (
   id          uuid primary key references auth.users(id) on delete cascade,
-  username    text unique not null,
-  description text default '',
-  avatar_url  text default '',
-  email       text default '',
-  provider    text default '',
-  providers   jsonb default '[]'::jsonb,
-  created_at  timestamptz default now(),
-  updated_at  timestamptz default now()
+  username    text not null,
+  description text not null default '',
+  avatar_url  text not null default '',
+  created_at  timestamptz not null default now(),
+  updated_at  timestamptz not null default now()
 );
 
--- enable row level security
+-- Case-insensitive username uniqueness ("JDoe" and "jdoe" collide).
+create unique index users_username_lower_idx
+  on public.users (lower(username));
+
+-- ── Row Level Security ───────────────────────────────────────────────────
 alter table public.users enable row level security;
 
 -- anyone can read any user record (public view)
+drop policy if exists "users are public" on public.users;
 create policy "users are public"
   on public.users for select using (true);
 
--- a user can update only their own row
-create policy "users update own row"
-  on public.users for update
-  using (auth.uid() = id) with check (auth.uid() = id);
-
 -- a user can insert only their own row
+drop policy if exists "users insert own row" on public.users;
 create policy "users insert own row"
   on public.users for insert
   with check (auth.uid() = id);
 
--- keep updated_at fresh
+-- a user can update only their own row
+drop policy if exists "users update own row" on public.users;
+create policy "users update own row"
+  on public.users for update
+  using (auth.uid() = id) with check (auth.uid() = id);
+
+-- a user can delete only their own row (optional — feature for later)
+drop policy if exists "users delete own row" on public.users;
+create policy "users delete own row"
+  on public.users for delete
+  using (auth.uid() = id);
+
+-- ── Updated-at trigger ───────────────────────────────────────────────────
 create or replace function public.set_updated_at()
 returns trigger language plpgsql as $$
 begin new.updated_at := now(); return new; end $$;
 
+drop trigger if exists users_set_updated_at on public.users;
 create trigger users_set_updated_at
   before update on public.users
   for each row execute function public.set_updated_at();
 ```
 
-You can stay on `STORAGE_BACKEND=local` (the default) until you're ready — the API surface doesn't change.
+Run it. If you see "table public.users already exists" you've already done
+this — only re-run the RLS / trigger blocks if you want to refresh policies.
 
-## 8. Restart and test
+### Sanity check
+
+In the SQL editor:
+
+```sql
+select count(*) from public.users;
+```
+
+If you get a count back (zero is fine) without an RLS error, you're good.
+
+## 8. **Required:** create the `avatars` Storage bucket
+
+Avatar images live in Supabase Storage (a separate service from Postgres,
+also bundled with your project). The user table only stores the public
+URL; the image bytes go to a bucket.
+
+### 8a. Create the bucket (dashboard)
+
+1. Supabase Dashboard → **Storage** → **New bucket**.
+2. **Name:** `avatars`
+3. **Public bucket:** ✅ on (so the URLs in `users.avatar_url` resolve
+   without a signed-URL handshake).
+4. **File size limit:** `5 MB` (matches `MAX_BYTES` in `api/avatar.py`).
+5. **Allowed MIME types** (optional but recommended):
+   `image/png, image/jpeg, image/jpg, image/gif, image/webp`
+6. Click **Create bucket**.
+
+### 8b. RLS policies for the bucket (SQL editor)
+
+Storage objects are gated by RLS in the `storage.objects` table. Run this
+in the SQL editor so each user can only write into their own folder
+(`avatars/<their-uid>/...`) while anyone can read:
+
+```sql
+-- ── Storage policies for the avatars bucket ─────────────────────────────
+
+-- Anyone can read avatars (public bucket).
+drop policy if exists "Avatars are publicly readable" on storage.objects;
+create policy "Avatars are publicly readable"
+  on storage.objects for select
+  using ( bucket_id = 'avatars' );
+
+-- A user can upload into their own folder: avatars/<uid>/...
+drop policy if exists "Users upload own avatar" on storage.objects;
+create policy "Users upload own avatar"
+  on storage.objects for insert
+  with check (
+    bucket_id = 'avatars'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- ...and update their own files (re-upload over an existing path).
+drop policy if exists "Users update own avatar" on storage.objects;
+create policy "Users update own avatar"
+  on storage.objects for update
+  using (
+    bucket_id = 'avatars'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+
+-- ...and delete their own old files (used by the cleanup-on-format-change path).
+drop policy if exists "Users delete own avatar" on storage.objects;
+create policy "Users delete own avatar"
+  on storage.objects for delete
+  using (
+    bucket_id = 'avatars'
+    and auth.uid()::text = (storage.foldername(name))[1]
+  );
+```
+
+The `(storage.foldername(name))[1]` trick takes the first path segment of
+the object key, so `avatars/<uid>/avatar.png` → `<uid>`. The backend
+always writes to `<uid>/avatar.<ext>`, so RLS matches the JWT's
+`auth.uid()` against that first segment.
+
+### 8c. Sanity check
+
+After uploading an avatar from the profile page, check:
+
+- **Storage → avatars bucket** → you should see a folder named after your user UID containing `avatar.png` (or `.jpg`, `.webp`, etc.).
+- **Table editor → public.users → your row** → `avatar_url` should look like
+  `https://<project>.supabase.co/storage/v1/object/public/avatars/<uid>/avatar.png?v=...`.
+- Visiting that URL directly in the browser should display the image.
+
+## 9. Restart and test
 
 ```bash
 ./scripts/run.sh        # or ./scripts/dockrun.sh
@@ -143,8 +244,9 @@ Visit <http://localhost:8000/user>:
 
 - `api/config.py` — serves the public Supabase values to the browser.
 - `api/auth.py` — verifies bearer tokens via Supabase `/auth/v1/user` (with a 60s cache).
-- `api/resources/users.py` — `/api/users/me` (GET/POST/PUT) + `/api/users/<username>`.
-- `api/avatar.py` — `/api/avatar` upload and `/avatars/<file>` serving.
+- `api/supabase_client.py` — thin urllib wrapper around Supabase PostgREST (`/rest/v1/*`). Forwards the user's JWT so RLS enforces ownership.
+- `api/resources/users.py` — `/api/users/me` (GET/POST/PUT) + `/api/users/<username>`. Reads/writes `public.users` in Supabase, **not** local files.
+- `api/avatar.py` — `POST /api/avatar`: uploads to the Supabase `avatars` bucket at `<uid>/avatar.<ext>` and PATCHes `public.users.avatar_url` with the bucket's public URL. No more local-disk avatars.
 - `public/js/auth.js` — `window.MabuAuth` client wrapper.
 - `public/js/UserSubpage.jsx` — the profile UI (owner + viewer modes).
 - `public/js/UserCreateSubpage.jsx` — the onboarding form shown on first sign-in.
