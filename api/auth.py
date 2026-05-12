@@ -100,6 +100,9 @@ def _fetch_user_from_supabase(token: str) -> Optional[dict]:
         "email":     data.get("email") or "",
         "provider":  app_meta.get("provider") or "",
         "providers": app_meta.get("providers") or [],
+        # Forward the raw bearer to downstream PostgREST calls so RLS
+        # sees the user identity, not the anon key.
+        "token":     token,
         "raw":       data,
     }
 

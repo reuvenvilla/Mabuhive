@@ -363,21 +363,20 @@ function UserPageContent() {
         } else if (session) {
           // /user with no username + signed in -> own record.
           const resp = await apiFetch("/api/users/me");
-          if (resp.status === 404) {
-            // Signed in but no user record yet — send them through the
-            // creation flow.
+          if (!resp.ok) {
+            // 404 = no row yet (expected on first sign-in).
+            // 502 / anything else = Supabase had an issue OR the row was
+            // deleted out from under us. Either way the right next step
+            // is the creation flow — it'll re-check and either bounce
+            // them to their existing profile or let them create one.
             window.location.replace("/user-create");
             return;
           }
-          if (!resp.ok) {
-            setError(`Failed to load your user record (${resp.status}).`);
-          } else {
-            const me = await resp.json();
-            setUser(me);
-            // Rewrite the URL so links are shareable.
-            if (me.username) {
-              window.history.replaceState(null, "", `/user/${me.username}`);
-            }
+          const me = await resp.json();
+          setUser(me);
+          // Rewrite the URL so links are shareable.
+          if (me.username) {
+            window.history.replaceState(null, "", `/user/${me.username}`);
           }
         } else {
           // /user + not signed in -> login screen handles itself.
