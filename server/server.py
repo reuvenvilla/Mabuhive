@@ -47,7 +47,9 @@ PAGES_ROOT = str(Path(__file__).resolve().parent.parent / "public")
 class SiteHandler(View):
     """Serves <project_root>/public/<page_name>.html as text/html."""
 
-    def get(self, request, page_name: str = "home") -> HttpResponse:
+    def get(self, request, page_name: str = "home", **kwargs) -> HttpResponse:
+        # kwargs swallows extra named URL groups (e.g. <username> on
+        # /profile/<username>) — the page itself parses them off the URL.
         pages_root = os.path.realpath(PAGES_ROOT)
         full_path  = os.path.realpath(os.path.join(pages_root, f"{page_name}.html"))
 

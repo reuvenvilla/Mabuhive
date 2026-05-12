@@ -46,10 +46,17 @@ function renderPage() {
         </DefaultPage>
       );
       break;
-    case "profile":
+    case "user":
       root.render(
-        <DefaultPage activePage="profile" title="Profile">
-          <ProfilePageContent />
+        <DefaultPage activePage="user" title="Profile">
+          <UserPageContent />
+        </DefaultPage>
+      );
+      break;
+    case "user-create":
+      root.render(
+        <DefaultPage activePage="user" title="Create your profile">
+          <CreateUserPageContent />
         </DefaultPage>
       );
       break;
