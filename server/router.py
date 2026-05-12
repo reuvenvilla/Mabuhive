@@ -35,6 +35,7 @@ from api.update import UpdateHandler
 from api.delete import DeleteHandler
 
 from api.resources.hives import HivesCollection, HivesItem
+from api.resources.quest import QuestCollection, QuestItem
 from api.resources.users import UsersCollection, UsersItem
 from api.resources.teams import TeamsCollection, TeamsItem
 
@@ -60,6 +61,8 @@ urlpatterns = [
     path("api/users/<str:id>",   UsersItem.as_view(),       name="users-item"),
     path("api/teams",            TeamsCollection.as_view(), name="teams-list"),
     path("api/teams/<str:id>",   TeamsItem.as_view(),       name="teams-item"),
+    path("api/quest",            QuestCollection.as_view(), name="quest-list"),
+    path("api/quest/<str:id>",   QuestItem.as_view(),       name="quest-item"),
 
     # ── Page routes ──────────────────────────────────────────────────────────
     path("", SiteHandler.as_view(), {"page_name": "home"}, name="home"),
