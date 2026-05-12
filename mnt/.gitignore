@@ -1,3 +1,4 @@
 # Treat /mnt as local-storage scratch. Keep the folder in git, ignore contents.
 *
 !.gitignore
+.claude
