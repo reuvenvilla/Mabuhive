@@ -42,6 +42,8 @@ from api.config import ConfigHandler
 from api.avatar import AvatarUploadHandler
 
 from api.resources.hives import HivesCollection, HivesItem
+from api.resources.quest import QuestCollection, QuestItem
+from api.resources.users import UsersCollection, UsersItem
 from api.resources.teams import TeamsCollection, TeamsItem
 from api.resources.users import UserMeHandler, UserByUsernameHandler
 
@@ -68,6 +70,8 @@ urlpatterns = [
     path("api/hives/<str:id>",   HivesItem.as_view(),       name="hives-item"),
     path("api/teams",            TeamsCollection.as_view(), name="teams-list"),
     path("api/teams/<str:id>",   TeamsItem.as_view(),       name="teams-item"),
+    path("api/quest",            QuestCollection.as_view(), name="quest-list"),
+    path("api/quest/<str:id>",   QuestItem.as_view(),       name="quest-item"),
 
     # ── API: users (Supabase auth) ───────────────────────────────────────────
     # /me must be registered before /<username> so it wins the match.
