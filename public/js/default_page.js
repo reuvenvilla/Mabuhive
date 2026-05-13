@@ -5,7 +5,7 @@ function DefaultPage({ activePage, title, children }) {
     <div className="page">
       <NavBar activePage={activePage} />
       <main className="container">
-        <h1>{title}</h1>
+        {title ? <h1>{title}</h1> : null}
         {children}
       </main>
     </div>
@@ -32,10 +32,31 @@ function renderPage() {
         </DefaultPage>
       );
       break;
+    case "hives-create":
+      root.render(
+        <DefaultPage activePage="hives" title="Create a hive">
+          <CreateHivePageContent />
+        </DefaultPage>
+      );
+      break;
+    case "hive":
+      root.render(
+        <DefaultPage activePage="hives" title="">
+          <HiveDetailPageContent />
+        </DefaultPage>
+      );
+      break;
     case "quests":
       root.render(
         <DefaultPage activePage="quests" title="Quests">
           <QuestsPageContent />
+        </DefaultPage>
+      );
+      break;
+    case "quest":
+      root.render(
+        <DefaultPage activePage="quests" title="">
+          <QuestDetailPageContent />
         </DefaultPage>
       );
       break;

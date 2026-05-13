@@ -1,325 +1,300 @@
 /**
  * public/js/QuestsSubpage.jsx
- * Quests page content component.
  *
- * /quests              -> all joined quests
- * /quests?quid=<quid>  -> specific quest detail page
+ * The /quests page. Three tabs, all sourced from /api/quests:
+ *   - Joined     — every quest the user has joined (regardless of status)
+ *   - Completed  — quests the user has marked completed
+ *   - My Quests  — quests the user created (pencil button → edit modal)
+ *
+ * Each card links to /quests/<id> (handled in the next round). Cards on
+ * the "My Quests" tab also surface a pencil button that opens an edit
+ * modal for description + image. Tab/card/modal styles come from
+ * hive.css so the look matches /hives/:id.
  */
 
-function QuestsPageContent() {
-  const [activeTab, setActiveTab] = React.useState("replies");
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-  const quests = [
-    {
-      quid: "quest-boba-run-001",
-      createdBy: "Nadia",
-      createdAt: "2026-05-12T19:30:00",
-      title: "Boba run tonight",
-      content:
-        "Anyone want to grab boba after study hall? Planning to leave from Powell around 7:30 PM.",
-      imageUrl: "",
-      hive: "Howlin' Homies",
-      status: "Open",
-      usersJoined: ["Nadia", "Reuven", "Vince", "Julian"],
-      usersCompleted: ["Nadia", "Reuven"],
-      visibility: {
-        users: [],
-        teams: ["Howlin' Homies"],
-        hives: ["PIES"],
-      },
-      fulfillmentConditions: {
-        type: "first_x_completed",
-        label: "First X Completed",
-        description: "The first 5 users who complete the quest receive credit.",
-        requiredCompletions: 5,
-      },
-      replies: [
-        {
-          name: "Reuven",
-          text: "Down! What place are we thinking?",
-        },
-        {
-          name: "Vince",
-          text: "I can join if it’s after 7!",
-        },
-      ],
-    },
-    {
-      quid: "quest-umbrella-needed-001",
-      createdBy: "Victoria",
-      createdAt: "2026-05-12T16:45:00",
-      title: "Umbrella needed!!",
-      content:
-        "It started raining and I'm stranded in biomed, can someone with an umbrella walk with me?",
-      imageUrl: "",
-      hive: "Ponyo Pals",
-      status: "Closed",
-      usersJoined: ["Alianna"],
-      usersCompleted: ["Alianna"],
-      visibility: {
-        users: [],
-        teams: ["Ponyo Pals"],
-        hives: ["PIES"],
-      },
-      fulfillmentConditions: {
-        type: "creator_picked",
-        label: "Creator Picked",
-        description: "The creator chooses who successfully completed the quest.",
-        requiredCompletions: 1,
-      },
-      replies: [
-        {
-          name: "Alianna",
-          text: "I can come in 10 minutes with an umbrella!",
-        },
-      ],
-    },
-    {
-      quid: "quest-bruin-bear-photo-001",
-      createdBy: "Reuven",
-      createdAt: "2026-05-12T14:15:00",
-      title: "PIES photo at Bruin Bear",
-      content:
-        "Take a group picture at the Bruin Bear before another org gets there!",
-      imageUrl: "",
-      hive: "PIES",
-      status: "Open",
-      usersJoined: ["Reuven"],
-      usersCompleted: [],
-      visibility: {
-        users: [],
-        teams: [],
-        hives: ["PIES"],
-      },
-      fulfillmentConditions: {
-        type: "first_to_join",
-        label: "First to Join",
-        description: "The first group/user to join and submit proof completes the quest.",
-        requiredCompletions: 1,
-      },
-      replies: [],
-    },
-  ];
+async function apiFetch(url, options = {}) {
+  const headers = {
+    ...(options.headers || {}),
+    ...((window.MabuAuth && (await window.MabuAuth.authHeaders())) || {}),
+  };
+  return fetch(url, { ...options, headers });
+}
 
-  const params = new URLSearchParams(window.location.search);
+function bgImage(url) {
+  return url ? { backgroundImage: `url(${url})` } : null;
+}
 
-  // Primary route param is quid. The questId/id fallback is just for older links.
-  const selectedQUID =
-    params.get("quid") || params.get("questId") || params.get("id");
+// ── Quest card (shared across tabs) ─────────────────────────────────────────
 
-  const selectedQuest = quests.find((quest) => quest.quid === selectedQUID);
-
-  function openQuest(quid) {
-    window.location.href = `/quests?quid=${quid}`;
-  }
-
-  function goBackToQuestList() {
-    window.location.href = "/quests";
-  }
-
-  if (selectedQUID && selectedQuest) {
-    return (
-      <main className="quests-page">
-        <button className="back-button" onClick={goBackToQuestList}>
-          ← Back to all quests
-        </button>
-
-        <QuestDetail
-          quest={selectedQuest}
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
-        />
-      </main>
-    );
-  }
-
-  if (selectedQUID && !selectedQuest) {
-    return (
-      <main className="quests-page">
-        <button className="back-button" onClick={goBackToQuestList}>
-          ← Back to all quests
-        </button>
-
-        <section className="empty-state-card">
-          <h2>Quest not found</h2>
-          <p>
-            We couldn’t find a quest with the QUID{" "}
-            <strong>{selectedQUID}</strong>.
-          </p>
-        </section>
-      </main>
-    );
-  }
-
+function QuestCard({ quest, showPencil, onEdit }) {
   return (
-    <main className="quests-page">
-      <section className="quests-landing-header">
-        <div>
-          <h2>My Quests</h2>
-          <p>Quests you’ve joined across all your hives.</p>
-        </div>
-      </section>
-
-      <section className="quest-grid">
-        {quests.map((quest) => (
-          <article
-            className="quest-preview-card"
-            key={quest.quid}
-            onClick={() => openQuest(quest.quid)}
+    <div className="quest-card">
+      <div className="quest-card__head">
+        <a href={`/quests/${quest.id}`} className="quest-card__title">
+          {quest.title}
+        </a>
+        {showPencil && (
+          <button
+            type="button"
+            className="icon-btn"
+            title="Edit description / image"
+            onClick={() => onEdit && onEdit(quest)}
           >
-            <div className="quest-preview-top">
-              <p className="quest-type">{quest.fulfillmentConditions.label}</p>
-              <span className="quest-status">{quest.status}</span>
-            </div>
-
-            <h3>{quest.title}</h3>
-            <p className="quest-preview-description">{quest.content}</p>
-
-            <div className="quest-preview-meta">
-              <span>{quest.hive}</span>
-              <span>{quest.usersJoined.length} joined</span>
-            </div>
-
-            <div className="quest-preview-meta quest-preview-meta-secondary">
-              <span>{quest.usersCompleted.length} completed</span>
-              <span>{formatQuestDate(quest.createdAt)}</span>
-            </div>
-          </article>
-        ))}
-      </section>
-    </main>
+            ✎
+          </button>
+        )}
+      </div>
+      <div className="quest-card__creator">
+        by {quest.creator_username || "—"}
+        {quest.hive_name && <span className="quest-card__hive">{quest.hive_name}</span>}
+      </div>
+      {quest.description && (
+        <div className="quest-card__desc">{quest.description}</div>
+      )}
+    </div>
   );
 }
 
-function QuestDetail({ quest, activeTab, setActiveTab }) {
+// ── Quest edit modal (My Quests pencil) ─────────────────────────────────────
+
+function EditQuestModal({ quest, onClose, onSaved }) {
+  const [description, setDescription]   = React.useState(quest.description || "");
+  const [imageFile, setImageFile]       = React.useState(null);
+  const [imagePreview, setImagePreview] = React.useState(quest.img_url || "");
+  const [keepImage, setKeepImage]       = React.useState(true);
+  const [busy, setBusy] = React.useState(false);
+  const [msg, setMsg]   = React.useState(null);
+
+  function onPickImage(e) {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    setImageFile(file);
+    setKeepImage(false);
+    setImagePreview(URL.createObjectURL(file));
+  }
+
+  async function submit(e) {
+    e.preventDefault();
+    setBusy(true); setMsg(null);
+
+    let img_url = keepImage ? (quest.img_url || "") : "";
+    if (imageFile) {
+      const form = new FormData();
+      form.append("image", imageFile);
+      const upResp = await apiFetch("/api/quest-image", { method: "POST", body: form });
+      if (!upResp.ok) {
+        const data = await upResp.json().catch(() => ({}));
+        setMsg({ kind: "err", text: `Image upload failed: ${data.error || upResp.status}` });
+        setBusy(false);
+        return;
+      }
+      ({ img_url } = await upResp.json());
+    }
+
+    const resp = await apiFetch(`/api/quests/${quest.id}`, {
+      method:  "PUT",
+      headers: { "Content-Type": "application/json" },
+      body:    JSON.stringify({ description: description.trim(), img_url }),
+    });
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      setMsg({ kind: "err", text: data.error || `Save failed (${resp.status})` });
+      setBusy(false);
+      return;
+    }
+    onSaved && onSaved(await resp.json());
+  }
+
   return (
-    <React.Fragment>
-      <section className="quest-card">
-        <div className="quest-card-header">
-          <div>
-            <p className="quest-type">{quest.fulfillmentConditions.label}</p>
-            <h2>{quest.title}</h2>
-
-            <p className="quest-creator">
-              Created by {quest.createdBy} · {formatQuestDate(quest.createdAt)}
-            </p>
-          </div>
-
-          <button className="join-button">Join</button>
-        </div>
-
-        <p className="quest-description">{quest.content}</p>
-
-        {quest.imageUrl ? (
-          <img className="quest-image" src={quest.imageUrl} alt={quest.title} />
-        ) : (
-          <div className="quest-image-placeholder">
-            Optional quest image goes here
-          </div>
-        )}
-
-        <div className="quest-progress">
-          {quest.usersJoined.length} joined · {quest.usersCompleted.length} completed
-        </div>
-
-        <div className="quest-completion-card">
-          <p className="quest-completion-label">How to complete</p>
-          <h3>{quest.fulfillmentConditions.label}</h3>
-          <p>{quest.fulfillmentConditions.description}</p>
-        </div>
-      </section>
-
-      <section className="quest-panel">
-        <div className="quest-tabs">
-          <button
-            className={activeTab === "replies" ? "tab active" : "tab"}
-            onClick={() => setActiveTab("replies")}
-          >
-            Replies
-          </button>
-
-          <button
-            className={activeTab === "participants" ? "tab active" : "tab"}
-            onClick={() => setActiveTab("participants")}
-          >
-            List
-          </button>
-        </div>
-
-        <div className="quest-panel-content">
-          {activeTab === "replies" ? (
-            <QuestReplies replies={quest.replies} />
-          ) : (
-            <QuestUserList
-              usersJoined={quest.usersJoined}
-              usersCompleted={quest.usersCompleted}
+    <div className="modal-backdrop" onClick={onClose}>
+      <div className="modal" onClick={(e) => e.stopPropagation()}>
+        <button type="button" className="modal__close" onClick={onClose} aria-label="Close">×</button>
+        <h3>Edit quest</h3>
+        <form onSubmit={submit} className="email-form" autoComplete="off">
+          <label>
+            Description
+            <textarea
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              rows={3} maxLength={1000}
+              className="field-input"
+            />
+          </label>
+          <label>
+            Replace image <span className="muted small">(optional)</span>
+            <input
+              type="file"
+              accept="image/png,image/jpeg,image/gif,image/webp"
+              onChange={onPickImage}
+            />
+          </label>
+          {imagePreview && (
+            <img
+              src={imagePreview} alt=""
+              style={{ maxWidth: "100%", borderRadius: "var(--radius)" }}
             />
           )}
-        </div>
-
-        <button className="reply-button">Reply</button>
-      </section>
-    </React.Fragment>
-  );
-}
-
-function QuestReplies({ replies }) {
-  if (replies.length === 0) {
-    return <p className="empty-panel-text">No replies yet.</p>;
-  }
-
-  return (
-    <div className="reply-list">
-      {replies.map((reply, index) => (
-        <article className="reply-card" key={index}>
-          <strong>{reply.name}</strong>
-          <p>{reply.text}</p>
-        </article>
-      ))}
+          <div className="actions">
+            <button type="submit" className="primary-btn" disabled={busy}>
+              {busy ? "Saving…" : "Save changes"}
+            </button>
+            <button type="button" className="link-btn" onClick={onClose} disabled={busy}>
+              Cancel
+            </button>
+          </div>
+          {msg && <p className={`form-msg ${msg.kind}`}>{msg.text}</p>}
+        </form>
+      </div>
     </div>
   );
 }
 
-function QuestUserList({ usersJoined, usersCompleted }) {
+// ── One tab's data (fetch + pagination + render) ────────────────────────────
+
+function QuestsTabBody({ kind, session }) {
+  const [items, setItems]     = React.useState([]);
+  const [page, setPage]       = React.useState(1);
+  const [hasMore, setHasMore] = React.useState(false);
+  const [loading, setLoading] = React.useState(false);
+  const [error, setError]     = React.useState(null);
+  const [editing, setEditing] = React.useState(null);
+
+  const PAGE_SIZE = 10;
+
+  // Reset to page 1 when the tab changes.
+  React.useEffect(() => { setPage(1); }, [kind]);
+
+  React.useEffect(() => {
+    if (!session) {
+      setItems([]); setError(null); setLoading(false);
+      return;
+    }
+    setLoading(true); setError(null);
+    let cancelled = false;
+    const url = new URL("/api/quests", window.location.origin);
+    url.searchParams.set("type", kind);
+    url.searchParams.set("page", String(page));
+    url.searchParams.set("size", String(PAGE_SIZE));
+
+    apiFetch(url.toString())
+      .then(async (resp) => {
+        if (cancelled) return;
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({}));
+          setError(data.error || `Failed (${resp.status})`);
+          setItems([]); setHasMore(false);
+        } else {
+          const data = await resp.json();
+          setItems(data.items || []);
+          setHasMore(Boolean(data.has_more));
+        }
+      })
+      .catch((e) => { if (!cancelled) setError(String(e)); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, [kind, page, session && session.user && session.user.id]);
+
+  const emptyText = (
+    kind === "completed" ? "No completed quests yet."
+    : kind === "mine"    ? "You haven't created any quests yet."
+                          : "You haven't joined any quests yet."
+  );
+
   return (
-    <div className="participant-list">
-      <h3 className="participant-section-title">Users Joined</h3>
-
-      {usersJoined.length > 0 ? (
-        usersJoined.map((person, index) => (
-          <div className="participant-row" key={`joined-${index}`}>
-            <div className="participant-avatar">{person.charAt(0)}</div>
-            <span>{person}</span>
-          </div>
-        ))
-      ) : (
-        <p className="empty-panel-text">No users have joined yet.</p>
-      )}
-
-      <h3 className="participant-section-title">Users Completed</h3>
-
-      {usersCompleted.length > 0 ? (
-        usersCompleted.map((person, index) => (
-          <div className="participant-row" key={`completed-${index}`}>
-            <div className="participant-avatar">{person.charAt(0)}</div>
-            <span>{person}</span>
-          </div>
-        ))
-      ) : (
-        <p className="empty-panel-text">No users have completed this quest yet.</p>
+    <div className="tab-body">
+      <div className="tab-list">
+        {!session && (
+          <p className="muted">Sign in to see your quests.</p>
+        )}
+        {session && loading && <p className="muted">Loading…</p>}
+        {session && error   && <p className="form-msg err">{error}</p>}
+        {session && !loading && !error && items.length === 0 && (
+          <p className="muted">{emptyText}</p>
+        )}
+        {items.map((q) => (
+          <QuestCard
+            key={q.id}
+            quest={q}
+            showPencil={kind === "mine"}
+            onEdit={(quest) => setEditing(quest)}
+          />
+        ))}
+      </div>
+      <footer className="tab-pager">
+        <button
+          type="button"
+          className="secondary-btn small"
+          disabled={page <= 1 || loading}
+          onClick={() => setPage((p) => Math.max(1, p - 1))}
+        >
+          ‹ Back
+        </button>
+        <span className="muted small">Page {page}</span>
+        <button
+          type="button"
+          className="secondary-btn small"
+          disabled={!hasMore || loading}
+          onClick={() => setPage((p) => p + 1)}
+        >
+          Forward ›
+        </button>
+      </footer>
+      {editing && (
+        <EditQuestModal
+          quest={editing}
+          onClose={() => setEditing(null)}
+          onSaved={(updated) => {
+            setItems((curr) =>
+              curr.map((q) => (q.id === updated.id ? { ...q, ...updated } : q))
+            );
+            setEditing(null);
+          }}
+        />
       )}
     </div>
   );
 }
 
-function formatQuestDate(dateString) {
-  return new Date(dateString).toLocaleDateString(undefined, {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-  });
-}
+// ── Page entry point ─────────────────────────────────────────────────────────
 
-function formatList(items) {
-  return items.length > 0 ? items.join(", ") : "None";
+function QuestsPageContent() {
+  const [session, setSession]     = React.useState(null);
+  const [authReady, setAuthReady] = React.useState(false);
+  const [tab, setTab]             = React.useState("joined");
+
+  React.useEffect(() => {
+    if (!window.MabuAuth) { setAuthReady(true); return; }
+    return window.MabuAuth.onAuthChange((s) => {
+      setSession(s);
+      setAuthReady(true);
+    });
+  }, []);
+
+  if (!authReady) return <p className="muted">Loading…</p>;
+
+  return (
+    <div className="quests-page">
+      <div className="tabs">
+        <button
+          type="button"
+          className={`tab-btn${tab === "joined" ? " tab-btn--active" : ""}`}
+          onClick={() => setTab("joined")}
+        >Joined</button>
+        <button
+          type="button"
+          className={`tab-btn${tab === "completed" ? " tab-btn--active" : ""}`}
+          onClick={() => setTab("completed")}
+        >Completed</button>
+        <button
+          type="button"
+          className={`tab-btn${tab === "mine" ? " tab-btn--active" : ""}`}
+          onClick={() => setTab("mine")}
+        >My Quests</button>
+      </div>
+
+      <QuestsTabBody kind={tab} session={session} />
+    </div>
+  );
 }
