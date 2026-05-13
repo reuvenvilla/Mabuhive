@@ -118,6 +118,22 @@
   border-radius: var(--radius);
   border: 1px solid var(--color-border);
 }
+.reply-card__teams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  margin-top: 0.45rem;
+}
+.reply-card__team-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 0.22rem 0.65rem;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.75rem;
+  font-weight: 700;
+  line-height: 1;
+}
 
 /* The fulfilled toggle that the creator sees on each reply. */
 .fulfill-toggle {

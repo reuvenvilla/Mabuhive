@@ -43,6 +43,19 @@ async function apiFetch(url, options = {}) {
 
 function bgImage(url) { return url ? { backgroundImage: `url(${url})` } : null; }
 function initialOf(s) { return ((s || "?")[0] || "?").toUpperCase(); }
+function teamPillStyle(color) {
+  const style = {
+    color,
+    borderColor: color,
+    backgroundColor: color,
+    opacity: 0.16,
+  };
+  if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+    style.backgroundColor = `${color}22`;
+    style.opacity = 1;
+  }
+  return style;
+}
 
 function formatWhen(iso) {
   if (!iso) return "";
@@ -80,6 +93,19 @@ function ReplyCard({ reply, canFulfill, onToggleFulfill, busy }) {
           </label>
         )}
       </div>
+      {reply.author_teams && reply.author_teams.length > 0 && (
+        <div className="reply-card__teams">
+          {reply.author_teams.map((team) => (
+            <span
+              key={team.id}
+              className="reply-card__team-pill"
+              style={teamPillStyle(team.color || "#888")}
+            >
+              {team.name}
+            </span>
+          ))}
+        </div>
+      )}
       {reply.description && <div className="reply-card__text">{reply.description}</div>}
       {reply.img_url && (
         <img className="reply-card__img" src={reply.img_url} alt="" />

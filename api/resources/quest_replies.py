@@ -32,9 +32,10 @@ from api import json_error
 from api.auth import require_user, verify_token
 from api import supabase_client as sb
 
-REPLIES_TABLE      = "quest_replies"
-QUESTS_TABLE       = "quests"
-PARTICIPANTS_TABLE = "quest_participants"
+REPLIES_TABLE       = "quest_replies"
+QUESTS_TABLE        = "quests"
+PARTICIPANTS_TABLE  = "quest_participants"
+TEAM_MEMBERS_TABLE  = "team_members"
 
 DESCRIPTION_MAX = 1000
 
@@ -52,7 +53,64 @@ def public_view(rec: dict, author: Optional[dict] = None) -> dict:
         "fulfills_quest": bool(rec.get("fulfills_quest")),
         "author_username":   (author or {}).get("username") or "",
         "author_avatar_url": (author or {}).get("avatar_url") or "",
+        "author_teams":      [],
     }
+
+
+def _fetch_quest_hive_id(quest_id: str, token: Optional[str]) -> Optional[str]:
+    status, data = sb.request(
+        QUESTS_TABLE,
+        params={"id": f"eq.{quest_id}", "select": "hive_id", "limit": "1"},
+        user_token=token,
+    )
+    if status >= 400 or not isinstance(data, list) or not data:
+        return None
+    return data[0].get("hive_id")
+
+
+def _attach_teams(rows: list, hive_id: Optional[str], token: Optional[str]) -> dict:
+    if not rows or not hive_id:
+        return {}
+
+    author_ids = list({r.get("created_by") for r in rows if r.get("created_by")})
+    if not author_ids:
+        return {}
+
+    status, memberships = sb.request(
+        TEAM_MEMBERS_TABLE,
+        params={
+            "user_id": f"in.({','.join(author_ids)})",
+            "select":  "team_id,user_id",
+        },
+        user_token=token,
+    )
+    if status >= 400 or not isinstance(memberships, list):
+        return {}
+
+    team_ids = list({m.get("team_id") for m in memberships if m.get("team_id")})
+    if not team_ids:
+        return {}
+
+    status, teams = sb.request(
+        "teams",
+        params={
+            "id":      f"in.({','.join(team_ids)})",
+            "hive_id": f"eq.{hive_id}",
+            "select":  "id,name,color",
+        },
+        user_token=token,
+    )
+    if status >= 400 or not isinstance(teams, list):
+        return {}
+
+    teams_by_id = {t.get("id"): t for t in teams if t.get("id")}
+    out = {uid: [] for uid in author_ids}
+    for m in memberships:
+        user_id = m.get("user_id")
+        team = teams_by_id.get(m.get("team_id"))
+        if user_id and team:
+            out.setdefault(user_id, []).append(team)
+    return out
 
 
 # ── Helpers ──────────────────────────────────────────────────────────────────
@@ -77,7 +135,7 @@ def _parse_json_body(request):
     return data, None
 
 
-def _attach_authors(rows: list, token: Optional[str]) -> list:
+def _attach_authors(rows: list, token: Optional[str], hive_id: Optional[str] = None) -> list:
     """Look up usernames + avatars for the reply authors."""
     if not rows:
         return []
@@ -94,7 +152,12 @@ def _attach_authors(rows: list, token: Optional[str]) -> list:
         )
         if status < 400 and isinstance(users, list):
             by_id = {u["id"]: u for u in users}
-    return [public_view(r, by_id.get(r.get("created_by"))) for r in rows]
+
+    teams_by_author = _attach_teams(rows, hive_id, token) if hive_id else {}
+    views = [public_view(r, by_id.get(r.get("created_by"))) for r in rows]
+    for view in views:
+        view["author_teams"] = teams_by_author.get(view.get("created_by"), [])
+    return views
 
 
 def _fetch_quest_owner(quest_id: str, token: Optional[str]):
@@ -131,7 +194,8 @@ class QuestRepliesHandler(View):
         if status >= 400:
             return _supabase_error(data, status)
         rows = data if isinstance(data, list) else []
-        return JsonResponse({"items": _attach_authors(rows, token)})
+        hive_id = _fetch_quest_hive_id(quest_id, token)
+        return JsonResponse({"items": _attach_authors(rows, token, hive_id)})
 
 
 # ── /api/quest-replies ───────────────────────────────────────────────────────
@@ -189,7 +253,8 @@ class QuestRepliesCollection(View):
         created = body[0] if isinstance(body, list) and body else (body if isinstance(body, dict) else None)
         if not created or not created.get("id"):
             return json_error("reply creation returned no row", status=502)
-        items = _attach_authors([created], token)
+        hive_id = _fetch_quest_hive_id(quest_id, token)
+        items = _attach_authors([created], token, hive_id)
         return JsonResponse(items[0], status=201)
 
 
