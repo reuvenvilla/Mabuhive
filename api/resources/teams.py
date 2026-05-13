@@ -8,11 +8,15 @@ Routes:
     POST /api/teams                       create a team inside a hive (auth)
     GET  /api/teams/<id>                  one team + members
     GET  /api/hives/<hive_id>/teams       list teams in a hive (with members inlined)
+    POST /api/teams/<id>/join             join a team (auth)
+    POST /api/teams/<id>/leave            leave a team (auth)
 
 Membership rules:
     - Only members of the hive can create a team in it.
     - The creator is auto-added to the new team's team_members.
     - team_members has composite PK (team_id, user_id).
+    - Any user can join a team (if they're a member of the hive).
+    - Any team member can leave.
 """
 import json
 from typing import Optional
@@ -245,3 +249,82 @@ class HiveTeamsHandler(View):
 
         items = [public_view(r, members_by_team.get(r["id"], [])) for r in rows]
         return JsonResponse({"items": items})
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class TeamJoinHandler(View):
+    """POST /api/teams/<id>/join — adds the caller to team_members."""
+    http_method_names = ["post"]
+
+    def post(self, request, id: str) -> JsonResponse:
+        user, err = require_user(request)
+        if err:
+            return err
+
+        token = user.get("token")
+        user_id = user["uid"]
+
+        # Verify team exists and get its hive_id.
+        status, data = sb.request(
+            TABLE,
+            params={"id": f"eq.{id}", "select": "id,hive_id", "limit": "1"},
+            user_token=token,
+        )
+        if status >= 400:
+            return _supabase_error(data, status)
+        rows = data if isinstance(data, list) else []
+        if not rows:
+            return json_error("team not found", status=404)
+
+        team = rows[0]
+        hive_id = team.get("hive_id")
+
+        # Verify user is a member of the hive.
+        if not _is_hive_member(user_id, hive_id, token):
+            return json_error("you must be a member of the hive to join its teams", status=403)
+
+        # Insert team_members row. If 23505 (unique violation), they're already a member.
+        m_status, m_body = sb.request(
+            MEMBERS_TABLE,
+            method="POST",
+            user_token=token,
+            body={"team_id": id, "user_id": user_id},
+            prefer="return=representation",
+        )
+
+        if m_status >= 400:
+            if sb.is_unique_violation(m_body):
+                return json_error("you're already a member of this team", status=409)
+            return _supabase_error(m_body, m_status)
+
+        return JsonResponse({"status": "joined"}, status=200)
+
+
+@method_decorator(csrf_exempt, name="dispatch")
+class TeamLeaveHandler(View):
+    """POST /api/teams/<id>/leave — removes the caller's team_members row."""
+    http_method_names = ["post"]
+
+    def post(self, request, id: str) -> JsonResponse:
+        user, err = require_user(request)
+        if err:
+            return err
+
+        token = user.get("token")
+        user_id = user["uid"]
+
+        # Delete the team_members row.
+        status, body = sb.request(
+            MEMBERS_TABLE,
+            method="DELETE",
+            user_token=token,
+            params={
+                "team_id": f"eq.{id}",
+                "user_id": f"eq.{user_id}",
+            },
+        )
+
+        if status >= 400:
+            return _supabase_error(body, status)
+
+        return JsonResponse({"status": "left"}, status=200)

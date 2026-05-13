@@ -14,8 +14,12 @@ URI                              Handler                  Description
 /api/delete                      DeleteHandler            Deletes a file or empty dir at ?path=
 /api/hives                       HivesCollection          POST create / GET list
 /api/hives/<id>                  HivesItem                GET read  / PUT update
+/api/hives/<id>/join             HiveJoinHandler          POST join hive
+/api/hives/<id>/leave            HiveLeaveHandler         POST leave hive
 /api/teams                       TeamsCollection          POST create / GET list
-/api/teams/<id>                  TeamsItem                GET read  / PUT update
+/api/teams/<id>                  TeamsItem                GET read
+/api/teams/<id>/join             TeamJoinHandler          POST join team
+/api/teams/<id>/leave            TeamLeaveHandler         POST leave team
 /api/users/me                    UserMeHandler            GET/POST/PUT own record (auth)
 /api/users/<username>            UserByUsernameHandler    GET someone's record (public view)
 /api/avatar                      AvatarUploadHandler      POST multipart avatar upload (auth)
@@ -56,7 +60,7 @@ from api.resources.quest_replies import (
     QuestRepliesHandler, QuestRepliesCollection, QuestRepliesItem,
 )
 from api.resources.teams import (
-    TeamsCollection, TeamsItem, HiveTeamsHandler,
+    TeamsCollection, TeamsItem, HiveTeamsHandler, TeamJoinHandler, TeamLeaveHandler,
 )
 from api.resources.users import UserMeHandler, UserByUsernameHandler
 
@@ -102,8 +106,10 @@ urlpatterns = [
     path("api/reply-image",            ReplyImageUploadHandler.as_view(), name="reply-image-upload"),
 
     # ── API: teams (Supabase) ────────────────────────────────────────────────
-    path("api/teams",            TeamsCollection.as_view(), name="teams-list"),
-    path("api/teams/<str:id>",   TeamsItem.as_view(),       name="teams-item"),
+    path("api/teams",                 TeamsCollection.as_view(),  name="teams-list"),
+    path("api/teams/<str:id>",        TeamsItem.as_view(),        name="teams-item"),
+    path("api/teams/<str:id>/join",   TeamJoinHandler.as_view(),  name="teams-join"),
+    path("api/teams/<str:id>/leave",  TeamLeaveHandler.as_view(), name="teams-leave"),
 
     # ── API: users (Supabase auth) ───────────────────────────────────────────
     # /me must be registered before /<username> so it wins the match.

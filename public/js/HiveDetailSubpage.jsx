@@ -348,8 +348,29 @@ function QuestsTab({ hiveId, kind, session, onCreateClick, refreshKey }) {
 
 // ── Teams tab ────────────────────────────────────────────────────────────────
 
-function TeamCard({ team }) {
+function TeamCard({ team, session, onJoinLeaveChange }) {
   const [open, setOpen] = React.useState(false);
+  const [busy, setBusy] = React.useState(false);
+  const [msg, setMsg] = React.useState(null);
+
+  const signedIn = Boolean(session && session.user);
+  const isMember = signedIn && team.members && team.members.some((m) => m.user_id === session.user.id);
+
+  async function joinOrLeave() {
+    setBusy(true); setMsg(null);
+    const endpoint = isMember
+      ? `/api/teams/${team.id}/leave`
+      : `/api/teams/${team.id}/join`;
+    const resp = await apiFetch(endpoint, { method: "POST" });
+    setBusy(false);
+    if (!resp.ok) {
+      const data = await resp.json().catch(() => ({}));
+      setMsg({ kind: "err", text: data.error || `Failed (${resp.status})` });
+      return;
+    }
+    onJoinLeaveChange && onJoinLeaveChange();
+  }
+
   return (
     <div
       className="team-card"
@@ -378,13 +399,29 @@ function TeamCard({ team }) {
               No members yet.
             </div>
           )}
+          {signedIn && (
+            <div className="team-card__action" style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid rgba(255,255,255,0.2)" }}>
+              <button
+                type="button"
+                className={`${isMember ? "secondary-btn" : "primary-btn"} small`}
+                onClick={(e) => { e.stopPropagation(); joinOrLeave(); }}
+                disabled={busy}
+                style={{ width: "100%", marginBottom: msg ? "0.5rem" : "0" }}
+              >
+                {busy
+                  ? (isMember ? "Leaving…" : "Joining…")
+                  : (isMember ? "Leave team" : "Join team")}
+              </button>
+              {msg && <p className={`form-msg ${msg.kind}`} style={{ fontSize: "0.85rem", margin: "0.5rem 0 0 0" }}>{msg.text}</p>}
+            </div>
+          )}
         </div>
       )}
     </div>
   );
 }
 
-function TeamsTab({ hiveId, onCreateClick, refreshKey }) {
+function TeamsTab({ hiveId, onCreateClick, refreshKey, session }) {
   const [teams, setTeams]     = React.useState([]);
   const [loading, setLoading] = React.useState(true);
   const [error, setError]     = React.useState(null);
@@ -409,6 +446,23 @@ function TeamsTab({ hiveId, onCreateClick, refreshKey }) {
     return () => { cancelled = true; };
   }, [hiveId, refreshKey]);
 
+  function handleJoinLeave() {
+    // Refetch teams to update membership status
+    setLoading(true); setError(null);
+    apiFetch(`/api/hives/${hiveId}/teams`)
+      .then(async (resp) => {
+        if (!resp.ok) {
+          const data = await resp.json().catch(() => ({}));
+          setError(data.error || `Failed (${resp.status})`);
+        } else {
+          const data = await resp.json();
+          setTeams(data.items || []);
+        }
+      })
+      .catch((e) => setError(String(e)))
+      .finally(() => setLoading(false));
+  }
+
   return (
     <div className="tab-body">
       <div className="tab-list">
@@ -417,7 +471,7 @@ function TeamsTab({ hiveId, onCreateClick, refreshKey }) {
         {!loading && !error && teams.length === 0 && (
           <p className="muted">No teams yet. Be the first to create one.</p>
         )}
-        {teams.map((t) => <TeamCard key={t.id} team={t} />)}
+        {teams.map((t) => <TeamCard key={t.id} team={t} session={session} onJoinLeaveChange={handleJoinLeave} />)}
       </div>
       <button type="button" className="fab" onClick={onCreateClick}>
         + Create team
@@ -908,6 +962,7 @@ function HiveDetailPageContent() {
         {mainTab === "teams" && (
           <TeamsTab
             hiveId={hiveId}
+            session={session}
             refreshKey={teamsRefresh}
             onCreateClick={() => setTeamModalOpen(true)}
           />
