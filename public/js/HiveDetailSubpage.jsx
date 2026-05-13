@@ -244,7 +244,11 @@ function QuestsTab({ hiveId, kind, session, onCreateClick, refreshKey }) {
     return () => ro.disconnect();
   }, []);
 
-  React.useEffect(() => { setPage(1); }, [kind, pageSize, refreshKey]);
+  // Only the tab or an explicit refresh resets us to page 1.
+  // `pageSize` is intentionally NOT in here: ResizeObserver can fire
+  // late (e.g. when a scrollbar shows/hides after the new page loads),
+  // and re-including it caused Forward to bounce back to page 1.
+  React.useEffect(() => { setPage(1); }, [kind, refreshKey]);
 
   // Fetch the list whenever the inputs change.
   React.useEffect(() => {

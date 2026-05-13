@@ -106,10 +106,13 @@ function HivesPageContent() {
     return () => ro.disconnect();
   }, [authReady]);
 
-  // Reset to page 1 whenever the query or page size changes.
+  // Reset to page 1 whenever the search query changes. NOT keyed on
+  // discoverySize: ResizeObserver can fire late (scrollbar appearing
+  // after a fresh batch loads, grid reflow, etc.) and re-including it
+  // here caused Forward to bounce back to page 1.
   React.useEffect(() => {
     setDiscoveryPage(1);
-  }, [debouncedSearch, discoverySize]);
+  }, [debouncedSearch]);
 
   // ── Fetch My Hives ───────────────────────────────────────────────────
   React.useEffect(() => {
