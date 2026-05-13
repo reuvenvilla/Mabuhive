@@ -1,36 +1,37 @@
 """
 api/avatar.py
 
-Avatar upload + serving. Avatars live under `<project>/mnt/avatars/<uid>.<ext>`
-so they sit alongside the rest of the local file storage.
+Avatar upload, end-to-end in Supabase:
 
-    POST /api/avatar              multipart upload (field name: "avatar")
-    GET  /avatars/<filename>      serve a stored avatar
+    POST /api/avatar  (multipart, field name: "avatar")
+        1. Validate the upload (type, size).
+        2. Best-effort: delete the user's previous avatars in the bucket
+           (any other allowed extension) so we don't leave orphans.
+        3. Upload to Supabase Storage at `avatars/<uid>/avatar.<ext>`,
+           sending the user's JWT — RLS on storage.objects enforces
+           "user can only write into their own folder".
+        4. PATCH public.users.avatar_url with the new public URL.
 
-POST is authenticated — the caller can only overwrite their own avatar
-(uid is taken from the JWT, not from the request). On success the profile's
-avatar_url is updated and the public URL is returned.
+The avatars bucket is public-read; the file's URL is just
+    <SUPABASE_URL>/storage/v1/object/public/avatars/<uid>/avatar.<ext>
+plus a cache-buster query string so the browser picks up replacements.
 
-Why a custom serve route instead of /public? Avatars live in /mnt, not
-/public — keeping user data out of the static-assets directory means
-collectstatic in production won't try to bundle every user's avatar
-into the deploy image.
+No more local-disk serving — the bucket is the source of truth. See
+SUPABASE_SETUP.md sections 7 + 8 for the table and bucket setup.
 """
-import mimetypes
-import os
-from pathlib import Path
+import time
 
-from django.http import Http404, HttpResponse, JsonResponse
+from django.http import JsonResponse
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.csrf import csrf_exempt
 
 from api import json_error
 from api.auth import require_user
-from api.resources.users import COLLECTION as USERS_COLLECTION
-from api.storage import get_storage
+from api import supabase_client as sb
+from api.resources.users import TABLE as USERS_TABLE
 
-AVATARS_DIR = Path(__file__).resolve().parent.parent / "mnt" / "avatars"
+BUCKET = "avatars"
 
 ALLOWED_TYPES = {
     "image/png":  ".png",
@@ -43,26 +44,14 @@ ALLOWED_TYPES = {
 MAX_BYTES = 5 * 1024 * 1024  # 5 MB
 
 
-def _avatar_url_for(filename: str) -> str:
-    return f"/avatars/{filename}"
-
-
-def _remove_old_avatar(uid: str, new_ext: str) -> None:
-    """If the user previously uploaded a different format, drop the old file."""
-    for ext in set(ALLOWED_TYPES.values()):
-        if ext == new_ext:
-            continue
-        old = AVATARS_DIR / f"{uid}{ext}"
-        if old.exists():
-            try:
-                old.unlink()
-            except OSError:
-                pass
+def _other_extensions(active_ext: str) -> set[str]:
+    return {ext for ext in ALLOWED_TYPES.values() if ext != active_ext}
 
 
 @method_decorator(csrf_exempt, name="dispatch")
 class AvatarUploadHandler(View):
-    """Accepts an authenticated multipart upload and writes it to disk."""
+    """Accept an authenticated multipart upload, push it to Supabase
+    Storage, and stamp the new URL onto the user's row."""
     http_method_names = ["post"]
 
     def post(self, request) -> JsonResponse:
@@ -88,54 +77,55 @@ class AvatarUploadHandler(View):
                 status=415,
             )
 
-        AVATARS_DIR.mkdir(parents=True, exist_ok=True)
-        _remove_old_avatar(user["uid"], ext)
+        uid   = user["uid"]
+        token = user.get("token")
 
-        filename = f"{user['uid']}{ext}"
-        target   = AVATARS_DIR / filename
+        # Best-effort cleanup: drop any old avatar at a different extension
+        # so we don't pile up orphans on every format change.
+        for old_ext in _other_extensions(ext):
+            sb.storage_delete(BUCKET, f"{uid}/avatar{old_ext}", user_token=token)
 
-        with open(target, "wb") as f:
-            for chunk in upload.chunks():
-                f.write(chunk)
-
-        # Update the user row. Bump a cache-buster onto the URL so the
-        # browser doesn't keep showing the old image after re-upload.
-        # The user record must already exist — clients call /api/users/me
-        # POST first, before uploading an avatar.
-        url = _avatar_url_for(filename) + f"?v={int(target.stat().st_mtime)}"
-        record = get_storage().update(
-            USERS_COLLECTION, user["uid"], {"avatar_url": url}
+        path = f"{uid}/avatar{ext}"
+        data = upload.read()
+        status, body = sb.storage_upload(
+            BUCKET, path, data, content_type,
+            user_token=token, upsert=True,
         )
-        if record is None:
+        if status >= 400:
+            msg = sb.error_message(body, status)
+            # Most common deployment-time failure: the bucket doesn't exist
+            # or RLS forbids writes to it. Make the hint explicit.
+            if status == 404 or "bucket" in msg.lower() or "not found" in msg.lower():
+                return json_error(
+                    f"avatars bucket missing or unwritable: {msg}. "
+                    "See SUPABASE_SETUP.md section 8.",
+                    status=502,
+                )
+            return json_error(msg, status=502)
+
+        # Cache-bust the URL so the browser doesn't keep showing the old image.
+        public_url = sb.storage_public_url(BUCKET, path) + f"?v={int(time.time())}"
+
+        # Mirror the new URL onto the user row.
+        status, body = sb.request(
+            USERS_TABLE,
+            method="PATCH",
+            user_token=token,
+            params={"id": f"eq.{uid}"},
+            body={"avatar_url": public_url},
+            prefer="return=representation",
+        )
+        if status >= 400:
+            return json_error(sb.error_message(body, status), status=502)
+
+        rows = body if isinstance(body, list) else ([body] if body else [])
+        if not rows:
             return json_error(
                 "create your user record before uploading an avatar",
                 status=409,
             )
 
         return JsonResponse({
-            "avatar_url": url,
-            "user":       record,
+            "avatar_url": public_url,
+            "user":       rows[0],
         })
-
-
-class AvatarServeHandler(View):
-    """GET /avatars/<filename> — serves an uploaded avatar from disk."""
-    http_method_names = ["get"]
-
-    def get(self, request, filename: str) -> HttpResponse:
-        root = os.path.realpath(str(AVATARS_DIR))
-        requested = os.path.realpath(os.path.join(root, filename))
-
-        if not requested.startswith(root + os.sep):
-            raise Http404("Not found.")
-
-        if not os.path.isfile(requested):
-            raise Http404(f"Avatar not found: {filename}")
-
-        content_type, _ = mimetypes.guess_type(requested)
-        with open(requested, "rb") as f:
-            response = HttpResponse(
-                f.read(), content_type=content_type or "application/octet-stream"
-            )
-        response["Cache-Control"] = "public, max-age=3600"
-        return response

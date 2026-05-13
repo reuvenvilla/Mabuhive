@@ -6,7 +6,6 @@ Central URL → handler routing table. Wired up via ROOT_URLCONF in settings.py.
 URI                              Handler                  Description
 -------------------------------  -----------------------  ------------------------------------
 /public/<filepath>               StaticHandler            Serves files from /public/
-/avatars/<filename>              AvatarServeHandler       Serves uploaded avatars from /mnt/avatars/
 /api/config                      ConfigHandler            Public Supabase URL + anon key
 /api/echo                        EchoHandler              Echoes back the HTTP request
 /api/create                      CreateHandler            Writes a file under /mnt/?path=...
@@ -40,7 +39,7 @@ from api.read   import ReadHandler
 from api.update import UpdateHandler
 from api.delete import DeleteHandler
 from api.config import ConfigHandler
-from api.avatar import AvatarUploadHandler, AvatarServeHandler
+from api.avatar import AvatarUploadHandler
 
 from api.resources.hives import HivesCollection, HivesItem
 from api.resources.teams import TeamsCollection, TeamsItem
@@ -52,8 +51,9 @@ print(f"  [router] pages  root : {PAGES_ROOT}   exists={os.path.isdir(PAGES_ROOT
 
 urlpatterns = [
     # ── Static files ─────────────────────────────────────────────────────────
+    # Avatars no longer served here — they live in the Supabase Storage
+    # bucket and the public URL is written straight into users.avatar_url.
     path("public/<path:filepath>",  StaticHandler.as_view(),       name="static"),
-    path("avatars/<str:filename>",  AvatarServeHandler.as_view(),  name="avatar-serve"),
 
     # ── API: misc ────────────────────────────────────────────────────────────
     path("api/config", ConfigHandler.as_view(), name="api-config"),
