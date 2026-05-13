@@ -1,0 +1,161 @@
+/* quest.css — styles for /quests/:id
+ *
+ * Shares the .tabs / .tab-btn / .tab-list / .modal* / .quest-card classes
+ * from hive.css. This file just adds the detail-page layout, the info
+ * panel, the reply card, and the participant row.
+ */
+
+.quest-page {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  min-height: 60vh;
+}
+
+/* ── Quest info panel (top) ─────────────────────────────────────────────── */
+.quest-info {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  position: relative;
+}
+
+.quest-info__head {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+}
+.quest-info__title { font-size: 1.5rem; font-weight: 700; flex: 1; min-width: 0; }
+.quest-info__creator { color: var(--color-muted); font-size: 0.85rem; }
+.quest-info__hive-pill {
+  display: inline-block;
+  background: rgba(233, 69, 96, 0.08);
+  color: var(--color-primary);
+  border: 1px solid rgba(233, 69, 96, 0.35);
+  border-radius: 999px;
+  padding: 1px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-left: 0.4rem;
+}
+.quest-info__desc {
+  color: #333;
+  line-height: 1.5;
+  white-space: pre-wrap;
+}
+
+.quest-info__image-wrap {
+  display: flex;
+  justify-content: center;
+}
+.quest-info__image {
+  max-width: 100%;
+  height: auto;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+}
+
+/* Image-size slider (creator only). */
+.image-scale-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  font-size: 0.85rem;
+  color: var(--color-muted);
+}
+.image-scale-row input[type="range"] { flex: 1; }
+
+/* ── Tabs panel (bottom) ────────────────────────────────────────────────── */
+.quest-tabs-panel {
+  background: var(--color-surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  min-height: 360px;
+  position: relative;
+}
+
+/* ── Reply card ─────────────────────────────────────────────────────────── */
+.reply-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+}
+.reply-card--fulfilled {
+  background: #e7f7e6;        /* light green */
+  border-color: #5ea35a;       /* darker shade of that green */
+}
+.reply-card__head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+.reply-card__avatar {
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  background: #eee no-repeat center / cover;
+  border: 1px solid var(--color-border);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: #bbb; font-size: 0.8rem;
+}
+.reply-card__author { font-weight: 600; }
+.reply-card__when   { color: var(--color-muted); font-size: 0.8rem; }
+.reply-card__text   { color: #333; line-height: 1.4; white-space: pre-wrap; }
+.reply-card__img    {
+  max-width: 100%;
+  border-radius: var(--radius);
+  border: 1px solid var(--color-border);
+}
+
+/* The fulfilled toggle that the creator sees on each reply. */
+.fulfill-toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.8rem;
+  color: var(--color-muted);
+  cursor: pointer;
+  user-select: none;
+}
+.fulfill-toggle input { transform: scale(1.1); }
+
+/* ── Participant row (List tab) ─────────────────────────────────────────── */
+.participant-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.6rem;
+  border-radius: var(--radius);
+  background: #fff;
+  border: 1px solid var(--color-border);
+}
+.participant-row--completed { background: #e7f7e6; border-color: #5ea35a; }
+.participant-row__avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: #eee no-repeat center / cover;
+  border: 1px solid var(--color-border);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; color: #bbb; font-size: 0.8rem;
+}
+.participant-row__name { flex: 1; min-width: 0; font-size: 0.95rem; }
+.participant-row__when {
+  color: var(--color-muted);
+  font-size: 0.78rem;
+  white-space: nowrap;
+}
+
+/* Reply FAB at bottom-right of the tabs panel */
+.quest-tabs-panel .fab { bottom: 1rem; right: 1rem; }
