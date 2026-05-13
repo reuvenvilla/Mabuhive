@@ -41,10 +41,23 @@ from api.delete import DeleteHandler
 from api.config import ConfigHandler
 from api.avatar import AvatarUploadHandler
 from api.hive_logo import HiveLogoUploadHandler
+from api.quest_image import QuestImageUploadHandler
+from api.reply_image import ReplyImageUploadHandler
 
-from api.resources.hives import HivesCollection, HivesItem, HivesMineHandler
-from api.resources.quest import QuestCollection, QuestItem
-from api.resources.teams import TeamsCollection, TeamsItem
+from api.resources.hives import (
+    HivesCollection, HivesItem, HivesMineHandler, HiveMembersHandler,
+    HiveJoinHandler, HiveLeaveHandler,
+)
+from api.resources.quest import (
+    QuestCollection, QuestItem, QuestJoinHandler, HiveQuestsHandler,
+    QuestParticipantsHandler,
+)
+from api.resources.quest_replies import (
+    QuestRepliesHandler, QuestRepliesCollection, QuestRepliesItem,
+)
+from api.resources.teams import (
+    TeamsCollection, TeamsItem, HiveTeamsHandler,
+)
 from api.resources.users import UserMeHandler, UserByUsernameHandler
 
 # Print resolved paths once at startup so misconfiguration is immediately visible
@@ -67,16 +80,30 @@ urlpatterns = [
 
     # ── API: hives (Supabase) ────────────────────────────────────────────────
     # /me must precede /<id> so it wins the route match.
-    path("api/hives",            HivesCollection.as_view(), name="hives-list"),
-    path("api/hives/me",         HivesMineHandler.as_view(), name="hives-mine"),
-    path("api/hives/<str:id>",   HivesItem.as_view(),       name="hives-item"),
-    path("api/hive-logo",        HiveLogoUploadHandler.as_view(), name="hive-logo-upload"),
+    path("api/hives",                          HivesCollection.as_view(),  name="hives-list"),
+    path("api/hives/me",                       HivesMineHandler.as_view(), name="hives-mine"),
+    path("api/hives/<str:id>",                 HivesItem.as_view(),        name="hives-item"),
+    path("api/hives/<str:id>/members",         HiveMembersHandler.as_view(), name="hive-members"),
+    path("api/hives/<str:id>/join",            HiveJoinHandler.as_view(),    name="hive-join"),
+    path("api/hives/<str:id>/leave",           HiveLeaveHandler.as_view(),   name="hive-leave"),
+    path("api/hives/<str:hive_id>/quests",     HiveQuestsHandler.as_view(),  name="hive-quests"),
+    path("api/hives/<str:hive_id>/teams",      HiveTeamsHandler.as_view(),   name="hive-teams"),
+    path("api/hive-logo",                      HiveLogoUploadHandler.as_view(), name="hive-logo-upload"),
 
-    # ── API: teams (legacy local-file CRUD, pending migration) ───────────────
+    # ── API: quests (Supabase) ───────────────────────────────────────────────
+    path("api/quests",                 QuestCollection.as_view(), name="quests-create"),
+    path("api/quests/<str:id>",        QuestItem.as_view(),       name="quests-item"),
+    path("api/quests/<str:id>/join",         QuestJoinHandler.as_view(),         name="quests-join"),
+    path("api/quests/<str:id>/participants", QuestParticipantsHandler.as_view(), name="quests-participants"),
+    path("api/quests/<str:quest_id>/replies", QuestRepliesHandler.as_view(),     name="quests-replies"),
+    path("api/quest-image",            QuestImageUploadHandler.as_view(), name="quest-image-upload"),
+    path("api/quest-replies",          QuestRepliesCollection.as_view(),  name="quest-replies-list"),
+    path("api/quest-replies/<str:id>", QuestRepliesItem.as_view(),        name="quest-replies-item"),
+    path("api/reply-image",            ReplyImageUploadHandler.as_view(), name="reply-image-upload"),
+
+    # ── API: teams (Supabase) ────────────────────────────────────────────────
     path("api/teams",            TeamsCollection.as_view(), name="teams-list"),
     path("api/teams/<str:id>",   TeamsItem.as_view(),       name="teams-item"),
-    path("api/quest",            QuestCollection.as_view(), name="quest-list"),
-    path("api/quest/<str:id>",   QuestItem.as_view(),       name="quest-item"),
 
     # ── API: users (Supabase auth) ───────────────────────────────────────────
     # /me must be registered before /<username> so it wins the match.
@@ -99,6 +126,18 @@ urlpatterns = [
         SiteHandler.as_view(),
         {"page_name": "hives-create"},
         name="hives-create-page",
+    ),
+    re_path(
+        r"^hives/(?P<hive_id>[a-zA-Z0-9_-]+)/?$",
+        SiteHandler.as_view(),
+        {"page_name": "hive"},
+        name="hive-detail-page",
+    ),
+    re_path(
+        r"^quests/(?P<quest_id>[a-zA-Z0-9_-]+)/?$",
+        SiteHandler.as_view(),
+        {"page_name": "quest"},
+        name="quest-detail-page",
     ),
     re_path(r"^(?P<page_name>[a-zA-Z0-9_-]+)/?$", SiteHandler.as_view(), name="page"),
 ]
