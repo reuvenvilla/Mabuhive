@@ -55,8 +55,6 @@ body {
 
 /* Quests page */
 
-/* Quests page */
-
 .quests-page {
   max-width: 900px;
   margin: 0 auto;
@@ -247,4 +245,102 @@ body {
     width: 100%;
     margin-top: 24px;
   }
+}
+
+/* Quests landing page */
+
+.quests-landing-header {
+  margin-bottom: 24px;
+}
+
+.quests-landing-header h2 {
+  font-size: 2.2rem;
+  margin: 0 0 6px;
+}
+
+.quests-landing-header p {
+  color: #666;
+  margin: 0;
+}
+
+.quest-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 20px;
+}
+
+.quest-preview-card {
+  background: #fff7dc;
+  border: 2px solid #e7c64f;
+  border-radius: 18px;
+  padding: 22px;
+  cursor: pointer;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.quest-preview-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+}
+
+.quest-preview-top {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.quest-status {
+  background: #f2c84b;
+  border-radius: 999px;
+  padding: 6px 12px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.quest-preview-card h3 {
+  font-size: 1.5rem;
+  margin: 0 0 10px;
+}
+
+.quest-preview-description {
+  color: #333;
+  line-height: 1.4;
+  margin-bottom: 20px;
+}
+
+.quest-preview-meta {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: #6b4e00;
+  font-weight: 700;
+}
+
+.back-button {
+  background: transparent;
+  border: none;
+  color: #6b4e00;
+  font-weight: 700;
+  font-size: 1rem;
+  cursor: pointer;
+  margin-bottom: 18px;
+}
+
+.back-button:hover {
+  text-decoration: underline;
+}
+
+.empty-state-card {
+  background: white;
+  border-radius: 18px;
+  padding: 28px;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.06);
+}
+
+.empty-panel-text {
+  color: #777;
+  margin: 12px 0;
 }
