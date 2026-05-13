@@ -32,6 +32,13 @@ function renderPage() {
         </DefaultPage>
       );
       break;
+    case "hives-create":
+      root.render(
+        <DefaultPage activePage="hives" title="Create a hive">
+          <CreateHivePageContent />
+        </DefaultPage>
+      );
+      break;
     case "quests":
       root.render(
         <DefaultPage activePage="quests" title="Quests">

@@ -3,37 +3,26 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Hives</title>
+  <title>Create a hive</title>
 
-  <!-- Global styles -->
   <link rel="stylesheet" href="/public/css/global.css" />
   <link rel="stylesheet" href="/public/css/user.css" />
   <link rel="stylesheet" href="/public/css/hives.css" />
 
-  <!-- React (inline CDN — no build step required) -->
   <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
   <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
-  <!-- Babel standalone: transforms JSX in the browser -->
   <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-  <!-- Supabase JS (UMD) — exposes window.supabase.createClient -->
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
-<body data-page="hives">
+<body data-page="hives-create">
 
   <div id="root"></div>
 
-  <!-- Shared utilities (plain JS — no JSX) -->
   <script src="/public/js/utils.js"></script>
-  <!-- Supabase auth wrapper — must load before any component that uses it -->
   <script src="/public/js/auth.js"></script>
 
-  <!-- Reusable React components -->
   <script type="text/babel" src="/public/js/NavBar.jsx"></script>
-
-  <!-- Page-specific content -->
-  <script type="text/babel" src="/public/js/HivesSubpage.jsx"></script>
-
-  <!-- Shared page bootstrap -->
+  <script type="text/babel" src="/public/js/HiveCreateSubpage.jsx"></script>
   <script type="text/babel" src="/public/js/default_page.js"></script>
 
 </body>

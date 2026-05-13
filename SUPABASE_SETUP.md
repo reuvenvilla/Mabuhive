@@ -226,6 +226,78 @@ After uploading an avatar from the profile page, check:
   `https://<project>.supabase.co/storage/v1/object/public/avatars/<uid>/avatar.png?v=...`.
 - Visiting that URL directly in the browser should display the image.
 
+### 8d. The other three image buckets
+
+Hives, quests, and quest replies each use their own bucket with the same
+RLS pattern as `avatars` — public read, owner-only write (where "owner"
+is whoever uploaded into the first folder segment).
+
+**Create three more buckets (dashboard):**
+
+| Bucket | Used by | Path pattern written by the backend |
+|---|---|---|
+| `hive_logos`   | `/hives/create`           | `<uploader_uid>/<ts>.<ext>` |
+| `quest_images` | quest creation / edit     | `<uploader_uid>/<ts>.<ext>` |
+| `reply_images` | quest reply pop-up        | `<uploader_uid>/<ts>.<ext>` |
+
+For each:
+1. Storage → **New bucket** → name from the table above.
+2. **Public bucket:** ✅ on.
+3. **File size limit:** `5 MB`.
+4. **Allowed MIME types** (optional): `image/png, image/jpeg, image/jpg, image/gif, image/webp`.
+
+**Then run this once in SQL editor** to install the same per-folder RLS
+on all three at once:
+
+```sql
+do $$
+declare b text;
+begin
+  foreach b in array array['hive_logos', 'quest_images', 'reply_images']
+  loop
+    execute format($f$
+      drop policy if exists "%1$s are publicly readable" on storage.objects;
+      create policy "%1$s are publicly readable"
+        on storage.objects for select
+        using ( bucket_id = %1$L );
+
+      drop policy if exists "%1$s users upload own" on storage.objects;
+      create policy "%1$s users upload own"
+        on storage.objects for insert
+        with check (
+          bucket_id = %1$L
+          and auth.uid()::text = (storage.foldername(name))[1]
+        );
+
+      drop policy if exists "%1$s users update own" on storage.objects;
+      create policy "%1$s users update own"
+        on storage.objects for update
+        using (
+          bucket_id = %1$L
+          and auth.uid()::text = (storage.foldername(name))[1]
+        );
+
+      drop policy if exists "%1$s users delete own" on storage.objects;
+      create policy "%1$s users delete own"
+        on storage.objects for delete
+        using (
+          bucket_id = %1$L
+          and auth.uid()::text = (storage.foldername(name))[1]
+        );
+    $f$, b);
+  end loop;
+end$$;
+```
+
+### 8e. Sanity check (hive_logos)
+
+After creating a hive from `/hives/create`:
+
+- **Storage → hive_logos** → there should be a folder named after your user UID with a file like `1715616000000.png`.
+- **Table editor → public.hives → your row** → `img_url` should be
+  `https://<project>.supabase.co/storage/v1/object/public/hive_logos/<uid>/<ts>.<ext>`.
+- **Table editor → public.hive_members** → there should be a row linking your `user_id` and the hive's `id`, with `role = 'admin'`.
+
 ## 9. Restart and test
 
 ```bash

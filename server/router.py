@@ -40,8 +40,9 @@ from api.update import UpdateHandler
 from api.delete import DeleteHandler
 from api.config import ConfigHandler
 from api.avatar import AvatarUploadHandler
+from api.hive_logo import HiveLogoUploadHandler
 
-from api.resources.hives import HivesCollection, HivesItem
+from api.resources.hives import HivesCollection, HivesItem, HivesMineHandler
 from api.resources.quest import QuestCollection, QuestItem
 from api.resources.teams import TeamsCollection, TeamsItem
 from api.resources.users import UserMeHandler, UserByUsernameHandler
@@ -64,9 +65,14 @@ urlpatterns = [
     path("api/update", UpdateHandler.as_view(), name="api-update"),
     path("api/delete", DeleteHandler.as_view(), name="api-delete"),
 
-    # ── API: resource CRUD (swappable storage backend) ───────────────────────
+    # ── API: hives (Supabase) ────────────────────────────────────────────────
+    # /me must precede /<id> so it wins the route match.
     path("api/hives",            HivesCollection.as_view(), name="hives-list"),
+    path("api/hives/me",         HivesMineHandler.as_view(), name="hives-mine"),
     path("api/hives/<str:id>",   HivesItem.as_view(),       name="hives-item"),
+    path("api/hive-logo",        HiveLogoUploadHandler.as_view(), name="hive-logo-upload"),
+
+    # ── API: teams (legacy local-file CRUD, pending migration) ───────────────
     path("api/teams",            TeamsCollection.as_view(), name="teams-list"),
     path("api/teams/<str:id>",   TeamsItem.as_view(),       name="teams-item"),
     path("api/quest",            QuestCollection.as_view(), name="quest-list"),
@@ -79,14 +85,20 @@ urlpatterns = [
     path("api/avatar",                 AvatarUploadHandler.as_view(),   name="avatar-upload"),
 
     # ── Page routes ──────────────────────────────────────────────────────────
-    # The more specific /user-create and /user/<username> are registered
-    # before the catch-all /<page_name>.
+    # Specific multi-segment routes are registered before the catch-all
+    # /<page_name> (which only matches a single segment anyway).
     path("", SiteHandler.as_view(), {"page_name": "home"}, name="home"),
     re_path(
         r"^user/(?P<username>[a-zA-Z0-9_-]+)/?$",
         SiteHandler.as_view(),
         {"page_name": "user"},
         name="user-by-username-page",
+    ),
+    re_path(
+        r"^hives/create/?$",
+        SiteHandler.as_view(),
+        {"page_name": "hives-create"},
+        name="hives-create-page",
     ),
     re_path(r"^(?P<page_name>[a-zA-Z0-9_-]+)/?$", SiteHandler.as_view(), name="page"),
 ]
