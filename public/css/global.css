@@ -344,3 +344,89 @@ body {
   color: #777;
   margin: 12px 0;
 }
+
+/* Quest detail spacing */
+
+.quest-card {
+  line-height: 1.45;
+}
+
+.quest-creator {
+  margin: 8px 0 2px;
+  color: #666;
+}
+
+.quest-quid {
+  margin: 2px 0 24px;
+  color: #444;
+  font-size: 0.95rem;
+}
+
+.quest-description {
+  margin: 0px 0 10px;
+  line-height: 1.55;
+}
+
+.quest-progress {
+  margin-top: 18px;
+  margin-bottom: 22px;
+  font-weight: 700;
+  color: #6b4e00;
+}
+
+.quest-details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  gap: 18px;
+  margin-top: 24px;
+}
+
+.quest-details-grid div {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid #ead37a;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.quest-details-grid strong {
+  display: block;
+  margin-bottom: 8px;
+  color: #222;
+}
+
+.quest-details-grid p {
+  margin: 0;
+  line-height: 1.55;
+}
+
+.quest-details-grid br {
+  margin-bottom: 4px;
+}
+
+.quest-completion-card {
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid #ead37a;
+  border-radius: 14px;
+  padding: 18px 20px;
+  margin-top: 24px;
+  max-width: 520px;
+}
+
+.quest-completion-label {
+  margin: 0 0 6px;
+  color: #8a6500;
+  font-weight: 700;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+}
+
+.quest-completion-card h3 {
+  margin: 0 0 8px;
+  font-size: 1.25rem;
+}
+
+.quest-completion-card p:last-child {
+  margin: 0;
+  line-height: 1.5;
+}
