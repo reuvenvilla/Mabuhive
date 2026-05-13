@@ -43,7 +43,6 @@ from api.avatar import AvatarUploadHandler
 
 from api.resources.hives import HivesCollection, HivesItem
 from api.resources.quest import QuestCollection, QuestItem
-from api.resources.users import UsersCollection, UsersItem
 from api.resources.teams import TeamsCollection, TeamsItem
 from api.resources.users import UserMeHandler, UserByUsernameHandler
 
